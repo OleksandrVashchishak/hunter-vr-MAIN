@@ -1,0 +1,217 @@
+$glass-bg: rgba(169, 169, 169, 0.4);
+$font: "ABC Areal", sans-serif;
+
+.root {
+  position: absolute;
+  left: 60px;
+  bottom: 60px;
+  z-index: 20;
+  width: 370px;
+  height: 363px;
+  box-sizing: border-box;
+
+  @media (max-width: 800px) {
+    left: 16px;
+    bottom: 16px;
+    width: min(370px, calc(100vw - 32px));
+    height: auto;
+    aspect-ratio: 370 / 388;
+  }
+}
+
+.glass {
+  position: relative;
+  background: $glass-bg;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  overflow: hidden;
+
+  &::before,
+  &::after {
+    border-radius: inherit;
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  &::before {
+    border: 1px solid hsl(0deg 0% 100% / 80%);
+    mask-image: linear-gradient(170deg, hsl(0, 0%, 100%), hsla(0, 0%, 100%, 0) 50%);
+  }
+
+  &::after {
+    border: 1px solid hsl(0deg 0% 100% / 80%);
+    mask-image: linear-gradient(175deg, hsla(0, 0%, 100%, 0) 50%, hsl(0, 0%, 100%));
+  }
+}
+
+.panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 27px;
+}
+
+.close {
+  position: absolute;
+  left: 13px;
+  top: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  img {
+    display: block;
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.tabs {
+  position: absolute;
+  top: 17px;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.tab {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-family: $font;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.72px;
+  text-align: center;
+  text-transform: capitalize;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.75;
+  }
+}
+
+.tabActive {
+  text-decoration: underline;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+
+.plan {
+  position: absolute;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+
+.markers {
+  position: absolute;
+  z-index: 1;
+
+  :global(path) {
+    pointer-events: none;
+  }
+
+  :global(.hotspot) {
+    cursor: pointer;
+    pointer-events: auto;
+
+    &:hover circle[stroke] {
+      stroke-opacity: 0.7;
+    }
+  }
+}
+
+.markersSvg {
+  position: absolute;
+  inset: 0;
+
+  :global(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+}
+
+.radar {
+  position: absolute;
+  z-index: 0;
+  width: 78px;
+  height: 78px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+}
+
+.radarSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: blur(0.6px);
+}
+
+/* Figma "1 floor" — Untitled-1 @ 30,66 / markers @ 23,94 */
+.planFloorI {
+  left: calc(30 / 370 * 100%);
+  top: calc(66 / 388 * 100%);
+  width: calc(311 / 370 * 100%);
+  height: calc(259 / 388 * 100%);
+}
+
+.markersFloorI {
+  left: calc(23 / 370 * 100%);
+  top: calc(94 / 388 * 100%);
+  width: calc(307 / 370 * 100%);
+  height: calc(222 / 388 * 100%);
+}
+
+/* Figma "2 floor" — Untitled-2 @ 25,68 / markers @ 18,123 */
+.planFloorII {
+  left: calc(25 / 370 * 100%);
+  top: calc(68 / 388 * 100%);
+  width: calc(314 / 370 * 100%);
+  height: calc(271 / 388 * 100%);
+}
+
+.markersFloorII {
+  left: calc(18 / 370 * 100%);
+  top: calc(123 / 388 * 100%);
+  width: calc(340 / 370 * 100%);
+  height: calc(165 / 388 * 100%);
+}
+
+/* Figma "3 floor" — Untitled-3 @ 18,93 / markers @ 14,111 */
+.planFloorIII {
+  left: calc(18 / 370 * 100%);
+  top: calc(93 / 388 * 100%);
+  width: calc(334 / 370 * 100%);
+  height: calc(216 / 388 * 100%);
+}
+
+.markersFloorIII {
+  left: calc(14 / 370 * 100%);
+  top: calc(111 / 388 * 100%);
+  width: calc(331 / 370 * 100%);
+  height: calc(175 / 388 * 100%);
+}

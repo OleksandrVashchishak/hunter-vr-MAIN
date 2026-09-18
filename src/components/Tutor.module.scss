@@ -1,0 +1,144 @@
+$bg-primary: #A9A9A933;
+$bg-secondary: #2F2F2F66;
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1100;
+  background: $bg-primary;
+  backdrop-filter: blur(17px);
+  -webkit-backdrop-filter: blur(17px);
+}
+
+.card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 458px;
+  padding: 34px;
+  box-sizing: border-box;
+  border-radius: 30px;
+  background: $bg-secondary;
+  transform: translate(-50%, -50%);
+
+  @media (max-width: 800px) {
+    width: 350px;
+    padding: 28px 20px;
+  }
+}
+
+.glass {
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  &::before,
+  &::after {
+    border-radius: inherit;
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  &::before {
+    border: 1px solid hsl(0deg 0% 100% / 80%);
+    mask-image: linear-gradient(170deg, hsl(0, 0%, 100%), hsla(0, 0%, 100%, 0) 50%);
+  }
+
+  &::after {
+    border: 1px solid hsl(0deg 0% 100% / 80%);
+    mask-image: linear-gradient(175deg, hsla(0, 0%, 100%, 0) 50%, hsl(0, 0%, 100%));
+  }
+}
+
+.items {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 46px;
+  width: 100%;
+  max-width: 318px;
+
+  @media (max-width: 800px) {
+    gap: 24px;
+  }
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 83px;
+  min-height: 119px;
+  flex-shrink: 0;
+}
+
+.icon {
+  display: block;
+  width: auto;
+  height: 68px;
+  margin-bottom: 10px;
+}
+
+.iconRotate {
+  height: 77px;
+  margin-bottom: 2px;
+  transform: translateY(-8px);
+}
+
+.text {
+  color: #fff;
+  text-align: center;
+  font-family: "ABC Areal", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.14;
+  letter-spacing: -0.56px;
+  text-transform: capitalize;
+  white-space: pre-line;
+  margin-top: 14px;
+}
+
+.close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.3s;
+
+  &:hover {
+    transform: rotate(180deg);
+  }
+
+  img {
+    display: block;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.loader {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1200;
+  transform: translate(-50%, calc(-50% + 160px));
+  color: #fff;
+  text-align: center;
+  font-family: "ABC Areal", sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 85%;
+}

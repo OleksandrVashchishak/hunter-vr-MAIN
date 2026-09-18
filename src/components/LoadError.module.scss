@@ -1,0 +1,94 @@
+$bg-primary: #A9A9A933;
+$bg-secondary: #2F2F2F66;
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1100;
+  background: $bg-primary;
+  backdrop-filter: blur(17px);
+  -webkit-backdrop-filter: blur(17px);
+}
+
+.card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: min(420px, calc(100vw - 40px));
+  padding: 34px 28px;
+  box-sizing: border-box;
+  border-radius: 30px;
+  background: $bg-secondary;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.glass {
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  &::before,
+  &::after {
+    border-radius: inherit;
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  &::before {
+    border: 1px solid hsl(0deg 0% 100% / 80%);
+    mask-image: linear-gradient(170deg, hsl(0, 0%, 100%), hsla(0, 0%, 100%, 0) 50%);
+  }
+
+  &::after {
+    border: 1px solid hsl(0deg 0% 100% / 80%);
+    mask-image: linear-gradient(175deg, hsla(0, 0%, 100%, 0) 50%, hsl(0, 0%, 100%));
+  }
+}
+
+.title {
+  margin: 0;
+  color: #fff;
+  font-family: "ABC Areal", sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+}
+
+.message {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: "ABC Areal", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: -0.3px;
+}
+
+.retry {
+  margin-top: 8px;
+  padding: 10px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-family: "ABC Areal", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.3px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: #fff;
+  }
+}

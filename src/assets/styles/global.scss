@@ -1,0 +1,31 @@
+html,
+body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: "ABC Areal", sans-serif;
+}
+
+
+#canvas {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+}
+
+
+@font-face {
+    font-family: "ABC Areal";
+    src: url("../fonts/abcAreal/ABCAreal-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "ABC Areal";
+    src: url("../fonts/abcAreal/ABCAreal-Medium.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+}
