@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useBabylonTour } from "./babylon/useBabylonTour";
+import { postTourProgress, postTourReady } from "./babylon/parentBridge";
 import RoomSelector from "./components/RoomSelector";
 import Minimap from "./components/Minimap";
 import Tutor from "./components/Tutor";
@@ -16,6 +17,15 @@ const BabylonViewer = () => {
     navigateTo,
     retry,
   } = useBabylonTour();
+
+  // Spinner listens for progress / ready via postMessage
+  useEffect(() => {
+    if (loading) {
+      postTourProgress(loadingPercent);
+      return;
+    }
+    postTourReady();
+  }, [loading, loadingPercent]);
 
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative" }}>

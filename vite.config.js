@@ -27,10 +27,21 @@ function copyTourAssets() {
   }
 }
 
+/** Hostinger CDN caches fixed asset names for a week — bust via query on each build. */
+function cacheBustAssets() {
+  const v = Date.now()
+  return {
+    name: 'cache-bust-assets',
+    transformIndexHtml(html) {
+      return html.replace(/(\/vr\/assets\/[^"'?\s]+)/g, `$1?v=${v}`)
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   base: '/vr/',
-  plugins: [react(), copyTourAssets()],
+  plugins: [react(), copyTourAssets(), cacheBustAssets()],
   server: {
     port: 5173,
     strictPort: true,
