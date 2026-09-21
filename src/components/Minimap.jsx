@@ -38,43 +38,14 @@ const FLOOR_ASSETS = {
   },
 };
 
-const MOBILE_MQ = "(max-width: 800px)";
-
 const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
-  const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return !window.matchMedia(MOBILE_MQ).matches;
-  });
+  const [open, setOpen] = useState(true);
   const [floorId, setFloorId] = useState("floor-ii");
   const [trackedViewId, setTrackedViewId] = useState(null);
   const markersRef = useRef(null);
   const radarRef = useRef(null);
 
   const currentViewId = CONFIG.views[currentIndex]?.id;
-
-  useEffect(() => {
-    const mq = window.matchMedia(MOBILE_MQ);
-    const onChange = () => {
-      if (!mq.matches) setOpen(true);
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  // Parent WP footer "Open Plan" toggles the map (bar lives in the theme).
-  useEffect(() => {
-    const onMessage = (event) => {
-      const type = event.data?.type;
-      if (type === "TOGGLE_FLOORPLAN") {
-        setOpen((prev) => !prev);
-        return;
-      }
-      if (type === "OPEN_FLOORPLAN") setOpen(true);
-      if (type === "CLOSE_FLOORPLAN") setOpen(false);
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
 
   // Sync tab when panorama room changes (React "adjust state during render")
   if (currentViewId !== trackedViewId) {
@@ -102,12 +73,10 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
 
     root.addEventListener("click", onClick);
     return () => root.removeEventListener("click", onClick);
-  }, [floor, onSelectRoom, open]);
+  }, [floor, onSelectRoom]);
 
   // Rotate radar with camera yaw (no React re-renders)
   useEffect(() => {
-    if (!open) return undefined;
-
     let rafId = 0;
 
     const tick = () => {
@@ -122,86 +91,77 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [cameraRef, active, open]);
+  }, [cameraRef, active]);
+
+  if (!open) return null;
 
   return (
     <div className={styles.root}>
-      {open && (
-        <div className={`${styles.panel} ${styles.glass}`}>
-          <button
-            type="button"
-            className={styles.close}
-            onClick={() => setOpen(false)}
-            aria-label="Close map"
-          >
-            <img src={iconClose} alt="" />
-          </button>
+      <div className={`${styles.panel} ${styles.glass}`}>
+        <button
+          type="button"
+          className={styles.close}
+          onClick={() => setOpen(false)}
+          aria-label="Close map"
+        >
+          <img src={iconClose} alt="" />
+        </button>
 
-          <div className={styles.tabs}>
-            {FLOORS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`${styles.tab} ${item.id === floorId ? styles.tabActive : ""}`}
-                onClick={() => setFloorId(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <img
-            className={`${styles.plan} ${assets.planClass}`}
-            src={assets.plan}
-            alt=""
-            draggable={false}
-          />
-
-          <div className={`${styles.markers} ${assets.markersClass}`}>
-            {active && (
-              <div
-                ref={radarRef}
-                className={styles.radar}
-                style={{
-                  left: `${(active.x / floor.viewBox.w) * 100}%`,
-                  top: `${(active.y / floor.viewBox.h) * 100}%`,
-                }}
-                aria-hidden
-              >
-                <svg className={styles.radarSvg} viewBox="0 0 100 100">
-                  <defs>
-                    <radialGradient id="minimapRadarFade" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
-                      <stop offset="55%" stopColor="rgba(255,255,255,0.28)" />
-                      <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-                    </radialGradient>
-                  </defs>
-                  {/* ~56° sector pointing up (0deg) */}
-                  <path
-                    d="M50 50 L32 10 A48 48 0 0 1 68 10 Z"
-                    fill="url(#minimapRadarFade)"
-                  />
-                </svg>
-              </div>
-            )}
-
-            <div
-              ref={markersRef}
-              className={styles.markersSvg}
-              dangerouslySetInnerHTML={{ __html: assets.svg }}
-            />
-          </div>
+        <div className={styles.tabs}>
+          {FLOORS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`${styles.tab} ${item.id === floorId ? styles.tabActive : ""}`}
+              onClick={() => setFloorId(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
-      )}
 
-      <button
-        type="button"
-        className={`${styles.openBtn} ${styles.glass}`}
-        onClick={() => setOpen(true)}
-        aria-expanded={open}
-      >
-        Open Floorplan
-      </button>
+        <img
+          className={`${styles.plan} ${assets.planClass}`}
+          src={assets.plan}
+          alt=""
+          draggable={false}
+        />
+
+        <div className={`${styles.markers} ${assets.markersClass}`}>
+          {active && (
+            <div
+              ref={radarRef}
+              className={styles.radar}
+              style={{
+                left: `${(active.x / floor.viewBox.w) * 100}%`,
+                top: `${(active.y / floor.viewBox.h) * 100}%`,
+              }}
+              aria-hidden
+            >
+              <svg className={styles.radarSvg} viewBox="0 0 100 100">
+                <defs>
+                  <radialGradient id="minimapRadarFade" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
+                    <stop offset="55%" stopColor="rgba(255,255,255,0.28)" />
+                    <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                  </radialGradient>
+                </defs>
+                {/* ~56° sector pointing up (0deg) */}
+                <path
+                  d="M50 50 L32 10 A48 48 0 0 1 68 10 Z"
+                  fill="url(#minimapRadarFade)"
+                />
+              </svg>
+            </div>
+          )}
+
+          <div
+            ref={markersRef}
+            className={styles.markersSvg}
+            dangerouslySetInnerHTML={{ __html: assets.svg }}
+          />
+        </div>
+      </div>
     </div>
   );
 };
