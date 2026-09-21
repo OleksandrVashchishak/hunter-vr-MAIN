@@ -38,14 +38,41 @@ const FLOOR_ASSETS = {
   },
 };
 
+const MOBILE_MQ = "(max-width: 800px)";
+
 const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
-  const [open, setOpen] = useState(true);
+  // Desktop: map stays open as before. Mobile: closed until WP "Open Plan".
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return !window.matchMedia(MOBILE_MQ).matches;
+  });
   const [floorId, setFloorId] = useState("floor-ii");
   const [trackedViewId, setTrackedViewId] = useState(null);
   const markersRef = useRef(null);
   const radarRef = useRef(null);
 
   const currentViewId = CONFIG.views[currentIndex]?.id;
+
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_MQ);
+    const onChange = () => {
+      if (!mq.matches) setOpen(true);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // Mobile WP toolbar "Open Plan" → open minimap (desktop UI untouched).
+  useEffect(() => {
+    const onMessage = (event) => {
+      const type = event.data?.type;
+      if (type === "OPEN_FLOORPLAN" || type === "OPEN_FLOOR_MAP") {
+        setOpen(true);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   // Sync tab when panorama room changes (React "adjust state during render")
   if (currentViewId !== trackedViewId) {
@@ -73,10 +100,12 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
 
     root.addEventListener("click", onClick);
     return () => root.removeEventListener("click", onClick);
-  }, [floor, onSelectRoom]);
+  }, [floor, onSelectRoom, open]);
 
   // Rotate radar with camera yaw (no React re-renders)
   useEffect(() => {
+    if (!open) return undefined;
+
     let rafId = 0;
 
     const tick = () => {
@@ -91,7 +120,7 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [cameraRef, active]);
+  }, [cameraRef, active, open]);
 
   if (!open) return null;
 
