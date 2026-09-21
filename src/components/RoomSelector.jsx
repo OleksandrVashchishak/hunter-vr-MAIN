@@ -7,7 +7,6 @@ import {
   getDefaultRoomViewId,
   getListRooms,
 } from "../config/floorsConfig";
-import iconMenu from "../assets/icons/menu-icon.svg";
 import styles from "./RoomSelector.module.scss";
 
 const MOBILE_MQ = "(max-width: 800px)";
@@ -110,15 +109,6 @@ const RoomSelector = ({ currentIndex, onSelectRoom }) => {
 
       <button type="button" className={`${styles.pill} ${styles.glass} ${styles.home}`}>
         Home
-      </button>
-
-      <button
-        type="button"
-        className={`${styles.navMenu} ${styles.glass}`}
-        aria-label="Menu"
-        onClick={() => postToParent({ type: "OPEN_WP_MENU" })}
-      >
-        <img src={iconMenu} alt="" width={20} height={14} />
       </button>
 
       {/* Desktop: separate Floor + Room */}

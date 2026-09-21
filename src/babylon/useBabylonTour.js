@@ -14,11 +14,9 @@ import { createFloorHotspots } from "./floorHotspots";
 import { isClick } from "./helpers/isClick";
 import { initCamera } from "./initCamera";
 import { initTourRoomAnalytics, syncRoomFromView } from "../analytics/fvAnalytics";
-import { logLoad } from "./loadDebug";
 
 /** Initial load: first cubemap 0–25%, GLB download 25–100%. Preloads don't touch the bar. */
 const LOAD_CUBEMAP_DONE = 25;
-let babylonBootSerial = 0;
 
 function isAlive(scene, aborted) {
   return !aborted && !!scene && !scene.isDisposed;
@@ -80,30 +78,18 @@ export function useBabylonTour() {
   }, [currentIndex]);
 
   useEffect(() => {
-    const bootSerial = ++babylonBootSerial;
     let aborted = false;
     aliveRef.current = true;
 
-    logLoad("1. effect START (Babylon boot)", { bootId, bootSerial });
-
     const checkAlive = () => isAlive(sceneRef.current, aborted);
     const safeSetLoading = (value) => {
-      if (!aborted) {
-        logLoad(`setLoading(${value})`, { bootSerial });
-        setLoading(value);
-      }
+      if (!aborted) setLoading(value);
     };
     const safeSetPercent = (value) => {
-      if (!aborted) {
-        if (value === LOAD_CUBEMAP_DONE || value === 100 || value % 25 === 0) {
-          logLoad(`setPercent(${value})`, { bootSerial });
-        }
-        setLoadingPercent(value);
-      }
+      if (!aborted) setLoadingPercent(value);
     };
     const safeSetError = (message) => {
       if (!aborted) {
-        logLoad("ERROR → loading=false", { message, bootSerial });
         setLoadError(message);
         setLoading(false);
       }
@@ -113,7 +99,6 @@ export function useBabylonTour() {
     };
 
     registerShaders();
-    logLoad("2. shaders registered", { bootSerial });
 
     preloadedCubemapsRef.current = {};
     projectMeshesRef.current = [];
@@ -138,12 +123,8 @@ export function useBabylonTour() {
 
     async function initBabylon() {
       const canvas = canvasRef.current;
-      if (!canvas || aborted) {
-        logLoad("3. initBabylon ABORT (no canvas / aborted)", { bootSerial, hasCanvas: !!canvas, aborted });
-        return;
-      }
+      if (!canvas || aborted) return;
 
-      logLoad("3. Engine + Scene create", { bootSerial });
       const engine = new Engine(canvas, true);
 
       engine.setHardwareScalingLevel(1);
@@ -164,17 +145,11 @@ export function useBabylonTour() {
       removeTouchRef.current = attachTouchControls(canvas, camera, lastTouchRef);
       removeDesktopLookRef.current = attachDesktopLookControls(canvas, camera, scene);
       removeZoomRef.current = attachZoomControls(canvas, camera, lastTouchRef);
-      logLoad("4. camera + controls ready", { bootSerial, firstCubemapKey, viewId: first?.id });
 
       try {
-        logLoad("5. first cubemap START", { bootSerial, firstCubemapKey });
         await loadCubemap(scene, firstCubemapKey);
-        if (!checkAlive()) {
-          logLoad("5b. first cubemap done but NOT alive", { bootSerial });
-          return;
-        }
+        if (!checkAlive()) return;
         safeSetPercent(LOAD_CUBEMAP_DONE);
-        logLoad("5. first cubemap DONE → 25%", { bootSerial });
       } catch (error) {
         console.error("[initCubemap]", firstCubemapKey, error);
         if (!checkAlive()) return;
@@ -182,20 +157,11 @@ export function useBabylonTour() {
         return;
       }
 
-      logLoad("6. preload other cubemaps (bg)", { bootSerial });
       preloadCubemapsSequential(scene, firstCubemapKey, loadCubemap, checkAlive);
 
-      logLoad("7. ImportMesh(model.glb) START", { bootSerial, base: import.meta.env.BASE_URL });
       SceneLoader.ImportMesh("", import.meta.env.BASE_URL, "model.glb", scene, (meshes) => {
-        if (!checkAlive()) {
-          logLoad("8. GLB callback but NOT alive (stale boot?)", { bootSerial });
-          return;
-        }
+        if (!checkAlive()) return;
 
-        logLoad("8. GLB ImportMesh SUCCESS", {
-          bootSerial,
-          meshCount: meshes?.length,
-        });
         safeSetPercent(100);
 
         const cubemap1 = preloadedCubemapsRef.current[firstCubemapKey];
@@ -219,11 +185,6 @@ export function useBabylonTour() {
           projectMeshesRef.current.push({ mesh, material: mat });
         });
 
-        logLoad("9. projection materials applied", {
-          bootSerial,
-          projectMeshes: projectMeshesRef.current.length,
-        });
-
         if (projectMeshesRef.current.length === 0) {
           safeSetError("3D model loaded empty. Please retry.");
           return;
@@ -235,27 +196,15 @@ export function useBabylonTour() {
           hoverRef: hotspotHoverRef,
         });
         hotspotsRef.current.refresh(indexRef.current);
-        logLoad("10. floor hotspots created + refresh", { bootSerial });
 
         safeSetLoading(false);
-        logLoad("11. loading=false (tour READY)", { bootSerial });
-
-        // Extra probes after paint — styles often drop on next frames.
-        requestAnimationFrame(() => {
-          logLoad("12. rAF+0 after ready", { bootSerial });
-          requestAnimationFrame(() => {
-            logLoad("13. rAF+1 after ready", { bootSerial });
-            setTimeout(() => logLoad("14. +100ms after ready", { bootSerial }), 100);
-            setTimeout(() => logLoad("15. +500ms after ready", { bootSerial }), 500);
-            setTimeout(() => logLoad("16. +1500ms after ready", { bootSerial }), 1500);
-          });
-        });
       }, (evt) => {
         if (!checkAlive()) return;
         if (evt.lengthComputable) {
           const glbShare = evt.loaded / evt.total;
-          const pct = Math.round(LOAD_CUBEMAP_DONE + glbShare * (100 - LOAD_CUBEMAP_DONE));
-          safeSetPercent(pct);
+          safeSetPercent(
+            Math.round(LOAD_CUBEMAP_DONE + glbShare * (100 - LOAD_CUBEMAP_DONE))
+          );
         }
       }, (error) => {
         console.error("[ImportMesh]", error);
@@ -292,7 +241,6 @@ export function useBabylonTour() {
         if (scene.isDisposed) return;
         scene.render();
       });
-      logLoad("7b. render loop started (GLB still loading)", { bootSerial });
       const handleResize = () => {
         if (!engineRef.current || engineRef.current.isDisposed) return;
         engine.resize();
@@ -306,7 +254,6 @@ export function useBabylonTour() {
     const disposeRoomAnalytics = initTourRoomAnalytics(() => CONFIG.views[indexRef.current]);
 
     return () => {
-      logLoad("X. effect CLEANUP (dispose Babylon)", { bootId, bootSerial });
       aborted = true;
       aliveRef.current = false;
       disposeRoomAnalytics?.();

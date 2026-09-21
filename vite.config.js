@@ -27,21 +27,10 @@ function copyTourAssets() {
   }
 }
 
-/** Hostinger CDN caches fixed asset names for a week — bust via query on each build. */
-function cacheBustAssets() {
-  const v = Date.now()
-  return {
-    name: 'cache-bust-assets',
-    transformIndexHtml(html) {
-      return html.replace(/(\/vr\/assets\/[^"'?\s]+)/g, `$1?v=${v}`)
-    },
-  }
-}
-
 // https://vite.dev/config/
 export default defineConfig({
   base: '/vr/',
-  plugins: [react(), copyTourAssets(), cacheBustAssets()],
+  plugins: [react(), copyTourAssets()],
   server: {
     port: 5173,
     strictPort: true,
@@ -51,12 +40,14 @@ export default defineConfig({
     },
   },
   build: {
+    // Content hashes in filenames — Hostinger CDN no longer serves stale
+    // fixed index.js/index.css that desync CSS-module class hashes.
     rollupOptions: {
       output: {
-        entryFileNames: `assets/index.js`,
-        chunkFileNames: `assets/[name].js`,
-        assetFileNames: `assets/[name].[ext]`
-      }
-    }
-  }
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
+    },
+  },
 })
