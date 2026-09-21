@@ -38,10 +38,10 @@ const FLOOR_ASSETS = {
   },
 };
 
-const MOBILE_MQ = "(max-width: 800px)";
+const MOBILE_MQ = "(max-width: 900px)";
 
 const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
-  // Desktop: map stays open as before. Mobile: closed until WP "Open Plan".
+  // Desktop: map open by default. Mobile: closed until WP "Open Plan".
   const [open, setOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     return !window.matchMedia(MOBILE_MQ).matches;
@@ -62,11 +62,19 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  // Mobile WP toolbar "Open Plan" → open minimap (desktop UI untouched).
+  // Mobile WP toolbar "Open Plan" → open minimap.
   useEffect(() => {
     const onMessage = (event) => {
       const type = event.data?.type;
-      if (type === "OPEN_FLOORPLAN" || type === "OPEN_FLOOR_MAP") {
+      if (
+        type === "OPEN_FLOORPLAN" ||
+        type === "OPEN_FLOOR_MAP" ||
+        type === "TOGGLE_FLOORPLAN"
+      ) {
+        if (type === "TOGGLE_FLOORPLAN") {
+          setOpen((prev) => !prev);
+          return;
+        }
         setOpen(true);
       }
     };
@@ -122,75 +130,86 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
     return () => cancelAnimationFrame(rafId);
   }, [cameraRef, active, open]);
 
-  if (!open) return null;
-
   return (
     <div className={styles.root}>
-      <div className={`${styles.panel} ${styles.glass}`}>
-        <button
-          type="button"
-          className={styles.close}
-          onClick={() => setOpen(false)}
-          aria-label="Close map"
-        >
-          <img src={iconClose} alt="" />
-        </button>
+      {open && (
+        <div className={`${styles.panel} ${styles.glass}`}>
+          <button
+            type="button"
+            className={styles.close}
+            onClick={() => setOpen(false)}
+            aria-label="Close map"
+          >
+            <img src={iconClose} alt="" />
+          </button>
 
-        <div className={styles.tabs}>
-          {FLOORS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`${styles.tab} ${item.id === floorId ? styles.tabActive : ""}`}
-              onClick={() => setFloorId(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+          <div className={styles.tabs}>
+            {FLOORS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`${styles.tab} ${item.id === floorId ? styles.tabActive : ""}`}
+                onClick={() => setFloorId(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
 
-        <img
-          className={`${styles.plan} ${assets.planClass}`}
-          src={assets.plan}
-          alt=""
-          draggable={false}
-        />
-
-        <div className={`${styles.markers} ${assets.markersClass}`}>
-          {active && (
-            <div
-              ref={radarRef}
-              className={styles.radar}
-              style={{
-                left: `${(active.x / floor.viewBox.w) * 100}%`,
-                top: `${(active.y / floor.viewBox.h) * 100}%`,
-              }}
-              aria-hidden
-            >
-              <svg className={styles.radarSvg} viewBox="0 0 100 100">
-                <defs>
-                  <radialGradient id="minimapRadarFade" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
-                    <stop offset="55%" stopColor="rgba(255,255,255,0.28)" />
-                    <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-                  </radialGradient>
-                </defs>
-                {/* ~56° sector pointing up (0deg) */}
-                <path
-                  d="M50 50 L32 10 A48 48 0 0 1 68 10 Z"
-                  fill="url(#minimapRadarFade)"
-                />
-              </svg>
-            </div>
-          )}
-
-          <div
-            ref={markersRef}
-            className={styles.markersSvg}
-            dangerouslySetInnerHTML={{ __html: assets.svg }}
+          <img
+            className={`${styles.plan} ${assets.planClass}`}
+            src={assets.plan}
+            alt=""
+            draggable={false}
           />
+
+          <div className={`${styles.markers} ${assets.markersClass}`}>
+            {active && (
+              <div
+                ref={radarRef}
+                className={styles.radar}
+                style={{
+                  left: `${(active.x / floor.viewBox.w) * 100}%`,
+                  top: `${(active.y / floor.viewBox.h) * 100}%`,
+                }}
+                aria-hidden
+              >
+                <svg className={styles.radarSvg} viewBox="0 0 100 100">
+                  <defs>
+                    <radialGradient id="minimapRadarFade" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
+                      <stop offset="55%" stopColor="rgba(255,255,255,0.28)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                    </radialGradient>
+                  </defs>
+                  {/* ~56° sector pointing up (0deg) */}
+                  <path
+                    d="M50 50 L32 10 A48 48 0 0 1 68 10 Z"
+                    fill="url(#minimapRadarFade)"
+                  />
+                </svg>
+              </div>
+            )}
+
+            <div
+              ref={markersRef}
+              className={styles.markersSvg}
+              dangerouslySetInnerHTML={{ __html: assets.svg }}
+            />
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Desktop only (hidden on mobile via CSS) — reopen after closing the map */}
+      <button
+        type="button"
+        className={`${styles.openBtn} ${styles.glass}`}
+        onClick={() => setOpen(true)}
+        aria-expanded={open}
+        hidden={open}
+      >
+        Open Floorplan
+      </button>
     </div>
   );
 };

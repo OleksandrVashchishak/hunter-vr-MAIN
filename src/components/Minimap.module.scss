@@ -48,6 +48,36 @@ $font: "ABC Areal", sans-serif;
   }
 }
 
+.openBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 54px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 30px;
+  color: #fff;
+  font-family: $font;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 30px;
+  letter-spacing: -0.72px;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  flex-shrink: 0;
+
+  &[hidden] {
+    display: none !important;
+  }
+
+  @media (max-width: 900px) {
+    display: none !important;
+  }
+}
+
 .panel {
   position: relative;
   width: 100%;
