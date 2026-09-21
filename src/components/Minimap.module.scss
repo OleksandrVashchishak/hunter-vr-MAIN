@@ -10,9 +10,10 @@ $font: "ABC Areal", sans-serif;
   height: 363px;
   box-sizing: border-box;
 
-  @media (max-width: 800px) {
-    left: 16px;
-    bottom: 16px;
+  @media (max-width: 900px) {
+    left: 50%;
+    bottom: 94px;
+    transform: translateX(-50%);
     width: min(370px, calc(100vw - 32px));
     height: auto;
     aspect-ratio: 370 / 388;

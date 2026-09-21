@@ -26,7 +26,7 @@ $bg-secondary: #2F2F2F66;
   background: $bg-secondary;
   transform: translate(-50%, -50%);
 
-  @media (max-width: 800px) {
+  @media (max-width: 900px) {
     width: 350px;
     padding: 28px 20px;
   }
@@ -65,7 +65,7 @@ $bg-secondary: #2F2F2F66;
   width: 100%;
   max-width: 318px;
 
-  @media (max-width: 800px) {
+  @media (max-width: 900px) {
     gap: 24px;
   }
 }

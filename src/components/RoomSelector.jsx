@@ -9,7 +9,7 @@ import {
 } from "../config/floorsConfig";
 import styles from "./RoomSelector.module.scss";
 
-const MOBILE_MQ = "(max-width: 800px)";
+const MOBILE_MQ = "(max-width: 900px)";
 
 const BackIcon = () => (
   <svg viewBox="0 0 9 17" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
