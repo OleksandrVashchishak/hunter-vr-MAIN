@@ -200,13 +200,12 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
         </div>
       )}
 
-      {/* Desktop only (hidden on mobile via CSS) — reopen after closing the map */}
+      {/* Desktop only (hidden on mobile via CSS) — stays visible while map is open */}
       <button
         type="button"
         className={`${styles.openBtn} ${styles.glass}`}
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
-        hidden={open}
       >
         Open Floorplan
       </button>
