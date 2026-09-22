@@ -1,5 +1,6 @@
 $bg-primary: #A9A9A933;
 $bg-secondary: #2F2F2F66;
+$mobile: 900px;
 
 .overlay {
   position: absolute;
@@ -26,9 +27,11 @@ $bg-secondary: #2F2F2F66;
   background: $bg-secondary;
   transform: translate(-50%, -50%);
 
-  @media (max-width: 900px) {
-    width: 350px;
-    padding: 28px 20px;
+  @media (max-width: $mobile) {
+    width: 241px;
+    padding: 40px;
+    gap: 40px;
+    border-radius: 35px;
   }
 }
 
@@ -64,9 +67,22 @@ $bg-secondary: #2F2F2F66;
   gap: 46px;
   width: 100%;
   max-width: 318px;
+}
 
-  @media (max-width: 900px) {
-    gap: 24px;
+.itemsDesktop {
+  @media (max-width: $mobile) {
+    display: none;
+  }
+}
+
+.itemsMobile {
+  display: none;
+
+  @media (max-width: $mobile) {
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+    max-width: 151px;
   }
 }
 
@@ -78,6 +94,13 @@ $bg-secondary: #2F2F2F66;
   width: 83px;
   min-height: 119px;
   flex-shrink: 0;
+}
+
+.itemMobile {
+  width: auto;
+  min-width: 100%;
+  min-height: 0;
+  justify-content: flex-start;
 }
 
 .icon {
@@ -93,6 +116,18 @@ $bg-secondary: #2F2F2F66;
   transform: translateY(-8px);
 }
 
+.iconTap {
+  width: 50px;
+  height: 81px;
+  margin-bottom: 15px;
+}
+
+.iconSwipe {
+  width: 52px;
+  height: 64px;
+  margin-bottom: 15px;
+}
+
 .text {
   color: #fff;
   text-align: center;
@@ -104,6 +139,13 @@ $bg-secondary: #2F2F2F66;
   text-transform: capitalize;
   white-space: pre-line;
   margin-top: 14px;
+
+  @media (max-width: $mobile) {
+    font-size: 16.56px;
+    letter-spacing: -0.66px;
+    margin-top: 0;
+    white-space: normal;
+  }
 }
 
 .close {
@@ -118,14 +160,19 @@ $bg-secondary: #2F2F2F66;
   cursor: pointer;
   transition: transform 0.3s;
 
+  @media (max-width: $mobile) {
+    width: 28px;
+    height: 28px;
+  }
+
   &:hover {
     transform: rotate(180deg);
   }
 
   img {
     display: block;
-    width: 24px;
-    height: 24px;
+    width: 100%;
+    height: 100%;
   }
 }
 
@@ -141,4 +188,8 @@ $bg-secondary: #2F2F2F66;
   font-size: 18px;
   font-weight: 400;
   line-height: 85%;
+
+  @media (max-width: $mobile) {
+    transform: translate(-50%, calc(-50% + 280px));
+  }
 }

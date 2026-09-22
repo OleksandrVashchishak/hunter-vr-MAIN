@@ -59,7 +59,7 @@ export function useBabylonTour() {
   const [bootId, setBootId] = useState(0);
   const aliveRef = useRef(true);
   const loadCubemapRef = useRef(null);
-  const cursorDisposeRef = useRef(null);
+  const cursorApiRef = useRef(null);
   const hotspotsRef = useRef(null);
   const hotspotHoverRef = useRef(null);
   const removeResizeRef = useRef(null);
@@ -134,9 +134,9 @@ export function useBabylonTour() {
       sceneRef.current = scene;
       scene.clearColor = new Color4(0.1, 0.1, 0.15, 1);
       hotspotHoverRef.current = null;
-      cursorDisposeRef.current = createProjectedCursor(scene, {
+      cursorApiRef.current = createProjectedCursor(scene, {
         isOverHotspot: () => !!hotspotHoverRef.current,
-      }).dispose;
+      });
       const first = CONFIG.views[indexRef.current];
       const firstCubemapKey = cubemapKey(first);
 
@@ -257,8 +257,8 @@ export function useBabylonTour() {
       aborted = true;
       aliveRef.current = false;
       disposeRoomAnalytics?.();
-      cursorDisposeRef.current?.();
-      cursorDisposeRef.current = null;
+      cursorApiRef.current?.dispose();
+      cursorApiRef.current = null;
       hotspotsRef.current?.dispose();
       hotspotsRef.current = null;
       removeTouchRef.current?.();
@@ -304,8 +304,14 @@ export function useBabylonTour() {
     setBootId((id) => id + 1);
   };
 
+  const setOverlaysVisible = (visible) => {
+    cursorApiRef.current?.setVisible(visible);
+    hotspotsRef.current?.setVisible(visible);
+  };
+
   return {
     canvasRef,
+    engineRef,
     cameraRef,
     currentIndex,
     loading,
@@ -313,5 +319,6 @@ export function useBabylonTour() {
     loadError,
     navigateTo,
     retry,
+    setOverlaysVisible,
   };
 }

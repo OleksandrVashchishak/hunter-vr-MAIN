@@ -12,6 +12,7 @@ export function createProjectedCursor(scene, { isOverHotspot } = {}) {
   let cursor = null;
   let targetPos = null;
   let targetRot = null;
+  let captureHidden = false;
 
   const POS_LERP = 0.25;
   const ROT_LERP = 0.25;
@@ -34,6 +35,10 @@ export function createProjectedCursor(scene, { isOverHotspot } = {}) {
 
   const pointerObserver = scene.onPointerObservable.add((pointerInfo) => {
     if (pointerInfo.type !== PointerEventTypes.POINTERMOVE) return;
+    if (captureHidden) {
+      hideCursor();
+      return;
+    }
 
     const overHotspot =
       isOverHotspot?.() ||
@@ -81,7 +86,7 @@ export function createProjectedCursor(scene, { isOverHotspot } = {}) {
   });
 
   const beforeRenderObserver = scene.onBeforeRenderObservable.add(() => {
-    if (isOverHotspot?.()) {
+    if (captureHidden || isOverHotspot?.()) {
       hideCursor();
       return;
     }
@@ -96,12 +101,16 @@ export function createProjectedCursor(scene, { isOverHotspot } = {}) {
   });
 
   return {
+    setVisible(visible) {
+      captureHidden = !visible;
+      if (!visible) hideCursor();
+    },
     dispose() {
       scene.onPointerObservable.remove(pointerObserver);
       scene.onBeforeRenderObservable.remove(beforeRenderObserver);
       cursor?.dispose();
       mat.dispose();
-    }
+    },
   };
 }
 

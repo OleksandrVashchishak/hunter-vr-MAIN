@@ -42,6 +42,7 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
   let hoveredActor = null;
   let currentActor = null;
   let frame = 0;
+  let captureHidden = false;
 
   function applyCursor() {
     if (!inputEl) return;
@@ -84,6 +85,11 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
   }
 
   function updateOcclusion() {
+    if (captureHidden) {
+      hotspotsByActor.forEach(({ root }) => root.setEnabled(false));
+      return;
+    }
+
     const camera = scene.activeCamera;
     if (!camera) return;
 
@@ -203,7 +209,7 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     CONFIG.views.forEach((view) => {
       const { root } = ensureHotspot(view);
       placeOnFloor(root, view);
-      root.setEnabled(view.id !== currentActor);
+      root.setEnabled(!captureHidden && view.id !== currentActor);
     });
 
     updateOcclusion();
@@ -211,6 +217,16 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     if (hoveredActor === currentActor) {
       setHovered(null);
     }
+  }
+
+  function setVisible(visible) {
+    captureHidden = !visible;
+    if (!visible) {
+      setHovered(null);
+      hotspotsByActor.forEach(({ root }) => root.setEnabled(false));
+      return;
+    }
+    updateOcclusion();
   }
 
   function viewIdFromPick(pickInfo) {
@@ -237,7 +253,7 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     waveMat.dispose();
   }
 
-  return { refresh, viewIdFromPick, dispose };
+  return { refresh, viewIdFromPick, setVisible, dispose };
 }
 
 function createButtonTexture(scene) {

@@ -1,0 +1,66 @@
+$glass-bg: rgba(169, 169, 169, 0.4);
+$glass-hover: rgba(47, 47, 47, 0.4);
+$mobile: 900px;
+
+// Sit left of WP Menu: padding-right 55 + Menu ~109 + gap 14
+.root {
+  position: absolute;
+  top: 60px;
+  right: 178px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: $glass-bg;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background 0.4s;
+  touch-action: manipulation;
+
+  &::before,
+  &::after {
+    border-radius: inherit;
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  &::before {
+    border: 1px solid hsl(0deg 0% 100% / 80%);
+    mask-image: linear-gradient(170deg, hsl(0, 0%, 100%), hsla(0, 0%, 100%, 0) 50%);
+  }
+
+  &::after {
+    border: 1px solid hsl(0deg 0% 100% / 80%);
+    mask-image: linear-gradient(175deg, hsla(0, 0%, 100%, 0) 50%, hsl(0, 0%, 100%));
+  }
+
+  &:hover:not(:disabled) {
+    background: $glass-hover;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+
+  @media (max-width: $mobile) {
+    display: none;
+  }
+}
+
+.icon {
+  width: 28px;
+  height: 21px;
+  display: block;
+  pointer-events: none;
+}
