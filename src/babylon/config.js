@@ -331,6 +331,7 @@ export const CONFIG = {
       look: { x: -331.538, y: 182.798, z: 1913.838 },
       views: ["sauna-2", "sauna-3", "massage-1", "wellness-2"],
       room: "Sauna",
+      yaw: 180,
     },
     {
       id: "sauna-2",
@@ -422,6 +423,7 @@ export const CONFIG = {
       look: { x: -1759.029, y: 188.505, z: 1488.221 },
       views: ["bedroom-1-1", "bathroom-1-2", "game-room-2", "stair-foyer-2"],
       room: "Bedroom 1",
+      yaw: 180,
     },
     {
       id: "bathroom-1-1",
