@@ -1,5 +1,5 @@
 import { Vector3, Tools } from "@babylonjs/core";
-import { CONFIG } from "./config";
+import { CONFIG, worldPos } from "./config";
 
 /** Pick nearest neighbor view id from a floor click. */
 export const pickNextViewFromClick = (pickInfo, camera, currentIndex) => {
@@ -15,10 +15,11 @@ export const pickNextViewFromClick = (pickInfo, camera, currentIndex) => {
     const neighbor = CONFIG.views.find((v) => v.id === neighborId);
     if (!neighbor) return;
 
+    const np = worldPos(neighbor.position);
     const neighborDir = new Vector3(
-      neighbor.position.x - camera.position.x,
-      neighbor.position.y - camera.position.y,
-      neighbor.position.z - camera.position.z
+      np.x - camera.position.x,
+      np.y - camera.position.y,
+      np.z - camera.position.z
     ).normalize();
 
     const dot = Vector3.Dot(clickDir, neighborDir);

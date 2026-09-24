@@ -10,7 +10,7 @@ import {
   Color3,
   Material,
 } from "@babylonjs/core";
-import { CONFIG } from "./config";
+import { CONFIG, SHOW_NEAR_POINTS, HIDE_POINTS, worldPos } from "./config";
 
 const RING_RADIUS = 20;
 const HIT_DIAMETER = RING_RADIUS * 2.4;
@@ -41,6 +41,8 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
 
   let hoveredActor = null;
   let currentActor = null;
+  /** @type {Set<string>} */
+  let visibleIds = new Set();
   let frame = 0;
   let captureHidden = false;
 
@@ -96,7 +98,7 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     const pickMeshes = getPickMeshes?.() || [];
 
     hotspotsByActor.forEach(({ root, viewId }) => {
-      if (viewId === currentActor) {
+      if (!visibleIds.has(viewId)) {
         root.setEnabled(false);
         return;
       }
@@ -139,7 +141,8 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
   });
 
   function placeOnFloor(root, view) {
-    const origin = new Vector3(view.position.x, view.position.y, view.position.z);
+    const p = worldPos(view.position);
+    const origin = new Vector3(p.x, p.y, p.z);
     const ray = new Ray(origin, Axis.Y.scale(-1), RAY_LENGTH);
     const pickMeshes = getPickMeshes?.() || [];
     const hit = scene.pickWithRay(ray, (m) => pickMeshes.includes(m));
@@ -148,7 +151,7 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
       ? hit.pickedPoint.y + FLOOR_OFFSET
       : 0.5;
 
-    root.position.set(view.position.x, y, view.position.z);
+    root.position.set(p.x, y, p.z);
   }
 
   function ensureHotspot(view) {
@@ -205,11 +208,18 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     if (!curr) return;
 
     currentActor = curr.id;
+    visibleIds = HIDE_POINTS
+      ? new Set()
+      : SHOW_NEAR_POINTS
+        ? new Set(curr.views || [])
+        : new Set(
+            CONFIG.views.map((v) => v.id).filter((id) => id !== currentActor)
+          );
 
     CONFIG.views.forEach((view) => {
       const { root } = ensureHotspot(view);
       placeOnFloor(root, view);
-      root.setEnabled(!captureHidden && view.id !== currentActor);
+      root.setEnabled(!captureHidden && visibleIds.has(view.id));
     });
 
     updateOcclusion();

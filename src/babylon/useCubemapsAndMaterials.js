@@ -12,8 +12,8 @@ export function createCubemapLoader(preloadedCubemapsRef) {
       return pendingLoads[name];
     }
 
-    const isMobile = window.matchMedia("(max-width: 780px)").matches;
-    const imgPath = isMobile ? "mobile" : "panorams";
+    // Mobile-optimized set not shipped for this tour yet — use desktop cubemaps.
+    const imgPath = "panorams";
     const root = import.meta.env.BASE_URL;
 
     const promise = new Promise((resolve, reject) => {

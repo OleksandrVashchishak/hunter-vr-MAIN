@@ -1,0 +1,142 @@
+Primarybedroom
+Camera001 x 700,073cm y 1488,588cm z 905,829cm
+Camera002 x 534,759cm y 1254,816cm z 905,829cm
+Camera003 x 328,025cm y 1179,331cm z 905,829cm
+
+Wardrobe 
+Camera001 x 99,284cm y 1489,656cm z 905,829cm
+
+PrimaryBathroom
+Camera001 x -226,291cm y 792,284cm z 905,829cm
+Camera002 x -160,128cm y 903,747cm z 905,829cm
+
+Hall1
+Camera001 x -51,59cm y 1184,943cm z 905,829cm
+Camera002 x -205,162cm y 1184,943cm z 905,829cm
+
+Hall2
+Camera001 x -783,491cm y 1246,964cm z 905,829cm
+Camera002 x -1111,076cm y 1188,22cm z 905,829cm
+
+Living
+Camera001 (317,719cm x 1380,343cm x 555,764cm)
+Camera002 (765,358cm x 1241,794cm x 555,764cm)
+Camera003 (107,853cm x 1118,265cm x 555,647cm)
+
+Dining
+Camera001 (-213,906cm x 1368,082cm x 555,647cm)
+Camera002 (-433,282cm x 1210,377cm x 555,647cm)
+Camera003 (-16,777cm x 1982,272cm x 555,647cm)
+
+Kitchen
+Camera001 (-119,561cm x 766,581cm x 555,647cm)
+Camera002 (-338,657cm x 1019,756cm x 555,706cm)
+
+Entry
+Cam001 (-774,5cm x 1157,144cm x 555,647cm)
+Cam002 (-774,5cm x 1023,059cm x 555,647cm)
+
+Outdoor
+Camera001 (266,265cm x 2344,781cm x 555,647cm)
+Camera002 (869,57cm x 1921,735cm x 555,647cm)
+Camera003 (1026,008cm x 1241,794cm x 555,647cm)
+
+Stair_Foyer
+
+Camera002-1
+x -838.593cm y 1163.529cm z 183.014cm
+Camera002-2
+x -956.286cm y 1476.864cm z 183.014cm
+Camera001-3
+x -607.929cm y 1020.832cm z 183.014cm
+
+Mudroom
+
+Camera001-1
+x -657.957cm y 685.729cm z 153.053cm
+Camera002-1
+x -838.593cm y 1163.529cm z 183.014cm
+
+Gym
+Camera001  X    232,278cm  Y   1376,012cm  Z 124,317cm
+Camera 002  X   118,884cm  Y   1177,007cm  Z 151,962cm
+Camera 003  X   -4,377cm     Y  1177,007cm   Z 152,002cm
+
+Corridor 
+Camera001  X -380,193cm  Y  1114,33cm        Z 152,53cm
+Camera002   X -380,294cm  Y    1223,585cm    Z 152,002cm
+
+Sauna 
+Camera001   X  -134,256cm  Y    1794,043cm    Z  182,798cm
+Camera002   X  -331,538cm  Y    1913,838cm     Z  182,798cm
+Camera003   X -353,943cm   Y    1766,893cm     Z 182,723cm
+
+Massage Room
+Camera 001   X -137,001cm  Y   1581,067cm     Z  181,668cm
+Camera 002   X -309,749cm  Y    1467,755cm    Z 152,002cm
+
+Bedroom 2
+
+Camera001
+x 67.275cm y 2225.562cm z 103.285cm
+Camera002
+x -199.215cm y 2071.556cm z 103.285cm
+
+Bedroom 4
+
+Camera1
+x -1478.81cm y 1195.55cm z 890.991cm
+Camera2
+x -1404.327cm y 1017.223cm z 890.991cm
+
+Bedroom 5
+
+Camera001
+x -111.088cm y 1752.144cm z 890.991cm
+Camera002
+x -359.542cm y 1576.75cm z 890.991cm
+
+Bathroom 5
+
+Camera_Bathroom_001
+x -239.285cm y 1402.23cm z 890.991cm
+Camera_Bathroom_002
+x -290.145cm y 1501.488cm z 890.991cm
+
+Game Room
+
+Camera001
+x -1743.641cm y 914.537cm z 188.505cm
+Camera002
+x -1321.269cm y 1156.996cm z 188.505cm
+Camera003
+x -1957.087cm y 542.934cm z 188.505cm
+
+Bedroom 1
+Cam001 (x  -1759.029cm  y 1488.221cm  z 188.505cm)
+Cam002-add  (x -1423.943cm  y 1296.168cm  z 188.505cm)
+
+Bathroom 1 
+Cam001 (x  -1234.418cm  y 1466.594cm  z 188.505cm)
+Cam002-add  (x -1351.526cm  y 1365.581cm  z 188.505cm)
+
+Lower Powder 
+Cam001 (x -833.452cm  y 915.714cm  z 196.384cm)
+
+Bathroom 2
+Cam001 (x 324.36cm  y 1851.858cm  z 116.904cm)
+Cam002-add (x 324.36cm y 1988.079cm z 116.904cm)
+
+Bedroom 3
+Cam001 (x -1515.576cm  y 1184.0cm   z 555.647cm)
+Cam002-add (x -1403.273cm  y 1397.857cm  z 555.647cm)
+
+Bathroom 3
+Cam001 (x -1142.074cm  y 1416.295cm  z 555.647cm)
+Cam002-add (x -1203.993cm  y 1423.739cm  z 555.647cm)
+
+Hall
+Cam001-add (x -1183.333cm  y 1135.721cm z 555.647cm)
+
+Main Powder
+Cam001 (x -1275.452cm  y 946.044cm  z 555.647cm)

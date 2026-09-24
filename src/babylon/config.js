@@ -1,85 +1,442 @@
-const Z_INT = 76;
+/**
+ * true  — GLB + camera fly + dual-cubemap projection
+ * false — no model; panoramas on a skybox; transitions via canvas blur
+ */
+export const USE_MODEL = true;
 
 /**
- * Tour viewpoints.
- * - id: navigation / UI key
- * - cubemap: asset folder prefix when it differs from id (legacy filenames)
- * - views: neighbor ids for click-to-navigate
+ * true  — skip cubemaps; keep GLB materials (debug scale / cage)
+ * false — normal projected panoramas
+ */
+export const HIDE_PANORAMS = true;
+
+/**
+ * Horizontal cam frame (Y/height stays as in config — already looks ok).
+ * Config stores Max→Bab as (Mx, Mz, My) → (x, y, z).
+ *
+ * Try in order until you spawn inside:
+ *   "negZ"      (x, y, -z)     ← current / Blender handedness
+ *   "negXZ"     (-x, y, -z)    ← + mirror X
+ *   "negX"      (-x, y, z)
+ *   "none"      (x, y, z)
+ *   "swap"      (z, y, x)      ← Max X/Y swapped into Bab X/Z
+ *   "swapNegZ"  (z, y, -x)
+ *   "swapNegX"  (-z, y, x)
+ *   "swapNegXZ" (-z, y, -x)
+ */
+export const CAM_XZ = "negXZ";
+
+/**
+ * true  — floor transition points only for neighbor panoramas (view.views)
+ * false — points for every panorama except the current one
+ */
+export const SHOW_NEAR_POINTS = true;
+
+/** true — hide all floor transition points */
+export const HIDE_POINTS = false;
+
+/** Runtime cam frame. Use everywhere instead of raw view.position / look. */
+export function worldPos({ x, y, z }) {
+  switch (CAM_XZ) {
+    case "negZ":
+      return { x, y, z: -z };
+    case "negX":
+      return { x: -x, y, z };
+    case "negXZ":
+      return { x: -x, y, z: -z };
+    case "swap":
+      return { x: z, y, z: x };
+    case "swapNegZ":
+      return { x: z, y, z: -x };
+    case "swapNegX":
+      return { x: -z, y, z: x };
+    case "swapNegXZ":
+      return { x: -z, y, z: -x };
+    case "none":
+    default:
+      return { x, y, z };
+  }
+}
+
+/**
+ * Tour viewpoints (coords from cordinates.txt, Max Z-up → Babylon Y-up).
+ * Dropped cams without panos: Outdoor×3, Living/Dining/Kitchen extras,
+ * Hall2 Cam002, Hall Cam001-add.
+ * bathroom-4: no modeler coords — midpoint of Bedroom 4.
+ * mudroom-2: Cam002 was stair duplicate — approximate near mudroom-1.
  */
 export const CONFIG = {
   views: [
     {
-      id: "main",
-      position: { x: -159.99, y: 7.32, z: -37.99 + Z_INT },
-      look: { x: -404.681, y: 7.32, z: -35.681 + Z_INT },
-      views: ["piano", "corridor", "plasma"],
-      room: "Living room",
+      id: "primary-bedroom-1",
+      position: { x: 700.073, y: 905.829, z: 1488.588 },
+      look: { x: 534.759, y: 905.829, z: 1254.816 },
+      views: ["primary-bedroom-2", "primary-bedroom-3", "closet", "primary-hall-1"],
+      room: "Primary Bedroom",
     },
     {
-      id: "plasma",
-      position: { x: -160.99, y: 7.32, z: -328.351 + Z_INT },
-      look: { x: -404.681, y: 159.32, z: -35.681 },
-      views: ["main", "window", "kitchen"],
-      room: "Living room",
+      id: "primary-bedroom-2",
+      position: { x: 534.759, y: 905.829, z: 1254.816 },
+      look: { x: 700.073, y: 905.829, z: 1488.588 },
+      views: ["primary-bedroom-1", "primary-bedroom-3", "primary-hall-1", "closet"],
+      room: "Primary Bedroom",
     },
     {
-      id: "window",
-      position: { x: -400.681, y: 7.32, z: -334.351 + Z_INT },
-      look: { x: -404.681, y: 159.32, z: -35.681 },
-      views: ["main", "plasma", "kitchen", "piano"],
-      room: "Living room",
+      id: "primary-bedroom-3",
+      position: { x: 328.025, y: 905.829, z: 1179.331 },
+      look: { x: 700.073, y: 905.829, z: 1488.588 },
+      views: ["primary-bedroom-1", "primary-bedroom-2", "primary-hall-1", "primary-bathroom-2"],
+      room: "Primary Bedroom",
     },
     {
-      id: "piano",
-      position: { x: -404.681, y: 7.32, z: -39.681 + Z_INT },
-      look: { x: -404.681, y: 159.32, z: -35.681 },
-      views: ["main", "window", "kitchen"],
-      room: "Living room",
+      id: "closet",
+      position: { x: 99.284, y: 905.829, z: 1489.656 },
+      look: { x: 700.073, y: 905.829, z: 1488.588 },
+      views: ["primary-bedroom-1", "primary-bedroom-2", "primary-hall-2"],
+      room: "Closet",
     },
     {
-      id: "kitchen",
-      cubemap: "newcithecn",
-      position: { x: -581.656, y: 7, z: -37.99 + Z_INT },
-      look: { x: -581.656, y: 159.32, z: -37.99 },
-      views: ["window", "piano"],
-      room: "Kitchen",
+      id: "primary-bathroom-1",
+      position: { x: -226.291, y: 905.829, z: 792.284 },
+      look: { x: -160.128, y: 905.829, z: 903.747 },
+      views: ["primary-bathroom-2", "primary-hall-2", "primary-hall-3"],
+      room: "Primary Bathroom",
     },
     {
-      id: "corridor",
-      position: { x: 39.691, y: 7, z: -37.99 + Z_INT },
-      look: { x: -1969.82, y: -1593.02, z: -305.42 },
-      views: ["cabinet", "bedroom1", "main"],
-      room: "Hall",
+      id: "primary-bathroom-2",
+      position: { x: -160.128, y: 905.829, z: 903.747 },
+      look: { x: -226.291, y: 905.829, z: 792.284 },
+      views: ["primary-bathroom-1", "primary-hall-2", "primary-bedroom-3"],
+      room: "Primary Bathroom",
     },
     {
-      id: "cabinet",
-      position: { x: 90.134, y: 7, z: -235.968 + Z_INT },
-      look: { x: -2474.25, y: -1593.02, z: 163.15 },
-      views: ["corridor"],
+      id: "primary-hall-1",
+      position: { x: -51.59, y: 905.829, z: 1184.943 },
+      look: { x: -205.162, y: 905.829, z: 1184.943 },
+      views: ["primary-hall-2", "primary-bedroom-1", "primary-bedroom-3", "office-2"],
+      room: "Primary Hall",
+    },
+    {
+      id: "primary-hall-2",
+      position: { x: -205.162, y: 905.829, z: 1184.943 },
+      look: { x: -51.59, y: 905.829, z: 1184.943 },
+      views: ["primary-hall-1", "primary-hall-3", "primary-bathroom-2", "closet"],
+      room: "Primary Hall",
+    },
+    {
+      id: "primary-hall-3",
+      position: { x: -783.491, y: 905.829, z: 1246.964 },
+      look: { x: -205.162, y: 905.829, z: 1184.943 },
+      views: ["primary-hall-2", "primary-bathroom-1", "bedroom-4-1", "office-bathroom-1"],
+      room: "Primary Hall",
+    },
+    {
+      id: "bedroom-4-1",
+      position: { x: -1478.81, y: 890.991, z: 1195.55 },
+      look: { x: -1404.327, y: 890.991, z: 1017.223 },
+      views: ["bedroom-4-2", "bathroom-4", "primary-hall-3"],
+      room: "Bedroom 4",
+    },
+    {
+      id: "bedroom-4-2",
+      position: { x: -1404.327, y: 890.991, z: 1017.223 },
+      look: { x: -1478.81, y: 890.991, z: 1195.55 },
+      views: ["bedroom-4-1", "bathroom-4", "primary-hall-3"],
+      room: "Bedroom 4",
+    },
+    {
+      id: "bathroom-4",
+      position: { x: -1441.568, y: 890.991, z: 1106.386 },
+      look: { x: -1478.81, y: 890.991, z: 1195.55 },
+      views: ["bedroom-4-1", "bedroom-4-2"],
+      room: "Bathroom 4",
+    },
+    {
+      id: "office-1",
+      position: { x: -111.088, y: 890.991, z: 1752.144 },
+      look: { x: -359.542, y: 890.991, z: 1576.75 },
+      views: ["office-2", "office-bathroom-2", "primary-hall-1"],
       room: "Office",
     },
     {
-      id: "bathroom",
-      position: { x: 542.268, y: 7, z: 135.236 + Z_INT },
-      look: { x: -4995.59, y: -1593.02, z: -2062.61 },
-      views: ["corridor", "bedroom1"],
-      room: "Bathroom",
+      id: "office-2",
+      position: { x: -359.542, y: 890.991, z: 1576.75 },
+      look: { x: -111.088, y: 890.991, z: 1752.144 },
+      views: ["office-1", "office-bathroom-1", "primary-hall-1"],
+      room: "Office",
     },
     {
-      id: "bedroom1",
-      cubemap: "badroom1",
-      position: { x: 554.569, y: 7, z: -37.99 + Z_INT },
-      look: { x: -4995.59, y: -1593.02, z: -305.42 },
-      views: ["bedroom2", "corridor", "bathroom"],
-      room: "Bedroom",
+      id: "office-bathroom-1",
+      position: { x: -239.285, y: 890.991, z: 1402.23 },
+      look: { x: -290.145, y: 890.991, z: 1501.488 },
+      views: ["office-bathroom-2", "office-2", "primary-hall-3"],
+      room: "Office Bathroom",
     },
     {
-      id: "bedroom2",
-      cubemap: "badroom2",
-      position: { x: 554.569, y: 7, z: -241.781 + Z_INT },
-      look: { x: -4995.59, y: -1593.02, z: 174.29 },
-      views: ["bedroom1"],
-      room: "Bedroom",
+      id: "office-bathroom-2",
+      position: { x: -290.145, y: 890.991, z: 1501.488 },
+      look: { x: -239.285, y: 890.991, z: 1402.23 },
+      views: ["office-bathroom-1", "office-1"],
+      room: "Office Bathroom",
+    },
+    {
+      id: "living",
+      position: { x: 317.719, y: 555.764, z: 1380.343 },
+      look: { x: -213.906, y: 555.764, z: 1368.082 },
+      views: ["dining", "kitchen", "entry-hall-1"],
+      room: "Living Room",
+    },
+    {
+      id: "dining",
+      position: { x: -213.906, y: 555.647, z: 1368.082 },
+      look: { x: 317.719, y: 555.647, z: 1380.343 },
+      views: ["living", "kitchen", "entry-hall-1"],
+      room: "Dining Room",
+    },
+    {
+      id: "kitchen",
+      position: { x: -119.561, y: 555.647, z: 766.581 },
+      look: { x: 317.719, y: 555.647, z: 1380.343 },
+      views: ["living", "dining", "entry-hall-2"],
+      room: "Kitchen",
+    },
+    {
+      id: "entry-hall-1",
+      position: { x: -774.5, y: 555.647, z: 1157.144 },
+      look: { x: -774.5, y: 555.647, z: 1023.059 },
+      views: ["entry-hall-2", "living", "dining", "main-powder"],
+      room: "Entry Hall",
+    },
+    {
+      id: "entry-hall-2",
+      position: { x: -774.5, y: 555.647, z: 1023.059 },
+      look: { x: -774.5, y: 555.647, z: 1157.144 },
+      views: ["entry-hall-1", "kitchen", "main-powder", "stair-foyer-3"],
+      room: "Entry Hall",
+    },
+    {
+      id: "bedroom-3-1",
+      position: { x: -1515.576, y: 555.647, z: 1184.0 },
+      look: { x: -1403.273, y: 555.647, z: 1397.857 },
+      views: ["bedroom-3-2", "bathroom-3-2", "main-powder"],
+      room: "Bedroom 3",
+    },
+    {
+      id: "bedroom-3-2",
+      position: { x: -1403.273, y: 555.647, z: 1397.857 },
+      look: { x: -1515.576, y: 555.647, z: 1184.0 },
+      views: ["bedroom-3-1", "bathroom-3-1"],
+      room: "Bedroom 3",
+    },
+    {
+      id: "bathroom-3-1",
+      position: { x: -1142.074, y: 555.647, z: 1416.295 },
+      look: { x: -1203.993, y: 555.647, z: 1423.739 },
+      views: ["bathroom-3-2", "bedroom-3-2", "main-powder"],
+      room: "Bathroom 3",
+    },
+    {
+      id: "bathroom-3-2",
+      position: { x: -1203.993, y: 555.647, z: 1423.739 },
+      look: { x: -1142.074, y: 555.647, z: 1416.295 },
+      views: ["bathroom-3-1", "bedroom-3-1"],
+      room: "Bathroom 3",
+    },
+    {
+      id: "main-powder",
+      position: { x: -1275.452, y: 555.647, z: 946.044 },
+      look: { x: -774.5, y: 555.647, z: 1157.144 },
+      views: ["entry-hall-1", "bedroom-3-1", "bathroom-3-1"],
+      room: "Main Powder Room",
+    },
+    {
+      id: "stair-foyer-1",
+      position: { x: -838.593, y: 183.014, z: 1163.529 },
+      look: { x: -956.286, y: 183.014, z: 1476.864 },
+      views: ["stair-foyer-2", "stair-foyer-3", "mudroom-1", "lower-powder", "entry-hall-2"],
+      room: "Stair Foyer",
+    },
+    {
+      id: "stair-foyer-2",
+      position: { x: -956.286, y: 183.014, z: 1476.864 },
+      look: { x: -838.593, y: 183.014, z: 1163.529 },
+      views: ["stair-foyer-1", "stair-foyer-3", "game-room-2", "bedroom-1-2"],
+      room: "Stair Foyer",
+    },
+    {
+      id: "stair-foyer-3",
+      position: { x: -607.929, y: 183.014, z: 1020.832 },
+      look: { x: -838.593, y: 183.014, z: 1163.529 },
+      views: ["stair-foyer-1", "stair-foyer-2", "mudroom-1", "wellness-1", "entry-hall-2"],
+      room: "Stair Foyer",
+    },
+    {
+      id: "mudroom-1",
+      position: { x: -657.957, y: 153.053, z: 685.729 },
+      look: { x: -750.0, y: 153.053, z: 800.0 },
+      views: ["mudroom-2", "stair-foyer-3", "lower-powder"],
+      room: "Mudroom",
+    },
+    {
+      id: "mudroom-2",
+      position: { x: -750.0, y: 153.053, z: 800.0 },
+      look: { x: -657.957, y: 153.053, z: 685.729 },
+      views: ["mudroom-1", "stair-foyer-1"],
+      room: "Mudroom",
+    },
+    {
+      id: "gym-1",
+      position: { x: 232.278, y: 124.317, z: 1376.012 },
+      look: { x: 118.884, y: 124.317, z: 1177.007 },
+      views: ["gym-2", "gym-3", "bathroom-2-1", "massage-1"],
+      room: "Gym",
+    },
+    {
+      id: "gym-2",
+      position: { x: 118.884, y: 151.962, z: 1177.007 },
+      look: { x: 232.278, y: 151.962, z: 1376.012 },
+      views: ["gym-1", "gym-3", "wellness-2", "massage-2"],
+      room: "Gym",
+    },
+    {
+      id: "gym-3",
+      position: { x: -4.377, y: 152.002, z: 1177.007 },
+      look: { x: 232.278, y: 152.002, z: 1376.012 },
+      views: ["gym-1", "gym-2", "wellness-1"],
+      room: "Gym",
+    },
+    {
+      id: "wellness-1",
+      position: { x: -380.193, y: 152.53, z: 1114.33 },
+      look: { x: -380.294, y: 152.53, z: 1223.585 },
+      views: ["wellness-2", "gym-3", "stair-foyer-3", "sauna-3"],
+      room: "Wellness Area",
+    },
+    {
+      id: "wellness-2",
+      position: { x: -380.294, y: 152.002, z: 1223.585 },
+      look: { x: -380.193, y: 152.002, z: 1114.33 },
+      views: ["wellness-1", "gym-2", "massage-2", "sauna-1"],
+      room: "Wellness Area",
+    },
+    {
+      id: "sauna-1",
+      position: { x: -134.256, y: 182.798, z: 1794.043 },
+      look: { x: -331.538, y: 182.798, z: 1913.838 },
+      views: ["sauna-2", "sauna-3", "massage-1", "wellness-2"],
+      room: "Sauna",
+    },
+    {
+      id: "sauna-2",
+      position: { x: -331.538, y: 182.798, z: 1913.838 },
+      look: { x: -134.256, y: 182.798, z: 1794.043 },
+      views: ["sauna-1", "sauna-3", "massage-1"],
+      room: "Sauna",
+    },
+    {
+      id: "sauna-3",
+      position: { x: -353.943, y: 182.723, z: 1766.893 },
+      look: { x: -134.256, y: 182.723, z: 1794.043 },
+      views: ["sauna-1", "sauna-2", "wellness-1"],
+      room: "Sauna",
+    },
+    {
+      id: "massage-1",
+      position: { x: -137.001, y: 181.668, z: 1581.067 },
+      look: { x: -309.749, y: 181.668, z: 1467.755 },
+      views: ["massage-2", "sauna-1", "gym-1"],
+      room: "Massage Room",
+    },
+    {
+      id: "massage-2",
+      position: { x: -309.749, y: 152.002, z: 1467.755 },
+      look: { x: -137.001, y: 152.002, z: 1581.067 },
+      views: ["massage-1", "wellness-2", "gym-2"],
+      room: "Massage Room",
+    },
+    {
+      id: "bedroom-2-1",
+      position: { x: 67.275, y: 103.285, z: 2225.562 },
+      look: { x: -199.215, y: 103.285, z: 2071.556 },
+      views: ["bedroom-2-2", "bathroom-2-2", "gym-1"],
+      room: "Bedroom 2",
+    },
+    {
+      id: "bedroom-2-2",
+      position: { x: -199.215, y: 103.285, z: 2071.556 },
+      look: { x: 67.275, y: 103.285, z: 2225.562 },
+      views: ["bedroom-2-1", "bathroom-2-1"],
+      room: "Bedroom 2",
+    },
+    {
+      id: "bathroom-2-1",
+      position: { x: 324.36, y: 116.904, z: 1851.858 },
+      look: { x: 324.36, y: 116.904, z: 1988.079 },
+      views: ["bathroom-2-2", "bedroom-2-2", "gym-1"],
+      room: "Bathroom 2",
+    },
+    {
+      id: "bathroom-2-2",
+      position: { x: 324.36, y: 116.904, z: 1988.079 },
+      look: { x: 324.36, y: 116.904, z: 1851.858 },
+      views: ["bathroom-2-1", "bedroom-2-1"],
+      room: "Bathroom 2",
+    },
+    {
+      id: "game-room-1",
+      position: { x: -1743.641, y: 188.505, z: 914.537 },
+      look: { x: -1321.269, y: 188.505, z: 1156.996 },
+      views: ["game-room-2", "game-room-3", "bedroom-1-1"],
+      room: "Game Room",
+    },
+    {
+      id: "game-room-2",
+      position: { x: -1321.269, y: 188.505, z: 1156.996 },
+      look: { x: -1743.641, y: 188.505, z: 914.537 },
+      views: ["game-room-1", "game-room-3", "stair-foyer-2", "bedroom-1-2"],
+      room: "Game Room",
+    },
+    {
+      id: "game-room-3",
+      position: { x: -1957.087, y: 188.505, z: 542.934 },
+      look: { x: -1743.641, y: 188.505, z: 914.537 },
+      views: ["game-room-1", "game-room-2"],
+      room: "Game Room",
+    },
+    {
+      id: "bedroom-1-1",
+      position: { x: -1759.029, y: 188.505, z: 1488.221 },
+      look: { x: -1423.943, y: 188.505, z: 1296.168 },
+      views: ["bedroom-1-2", "bathroom-1-1", "game-room-1"],
+      room: "Bedroom 1",
+    },
+    {
+      id: "bedroom-1-2",
+      position: { x: -1423.943, y: 188.505, z: 1296.168 },
+      look: { x: -1759.029, y: 188.505, z: 1488.221 },
+      views: ["bedroom-1-1", "bathroom-1-2", "game-room-2", "stair-foyer-2"],
+      room: "Bedroom 1",
+    },
+    {
+      id: "bathroom-1-1",
+      position: { x: -1234.418, y: 188.505, z: 1466.594 },
+      look: { x: -1351.526, y: 188.505, z: 1365.581 },
+      views: ["bathroom-1-2", "bedroom-1-1"],
+      room: "Bathroom 1",
+    },
+    {
+      id: "bathroom-1-2",
+      position: { x: -1351.526, y: 188.505, z: 1365.581 },
+      look: { x: -1234.418, y: 188.505, z: 1466.594 },
+      views: ["bathroom-1-1", "bedroom-1-2"],
+      room: "Bathroom 1",
+    },
+    {
+      id: "lower-powder",
+      position: { x: -833.452, y: 196.384, z: 915.714 },
+      look: { x: -838.593, y: 196.384, z: 1163.529 },
+      views: ["stair-foyer-1", "mudroom-1"],
+      room: "Lower Powder Room",
     },
   ],
 };

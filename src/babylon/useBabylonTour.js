@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Engine, Scene, Color4, Vector3, SceneLoader } from "@babylonjs/core";
+import { Engine, Scene, Color4, Vector3, SceneLoader, HemisphericLight } from "@babylonjs/core";
 import "@babylonjs/loaders";
-import { CONFIG, cubemapKey } from "./config";
+import { CONFIG, USE_MODEL, HIDE_PANORAMS, cubemapKey, worldPos } from "./config";
 import { registerShaders } from "./shaders";
 import { createCubemapLoader, createProjectionMaterial } from "./useCubemapsAndMaterials";
 import { pickNextViewFromClick } from "./pickNextViewFromClick";
@@ -11,12 +11,40 @@ import { attachDesktopLookControls } from "./desktopLookControls";
 import { attachZoomControls } from "./zoomControls";
 import { createProjectedCursor } from "./projectedCursor";
 import { createFloorHotspots } from "./floorHotspots";
+import { createNoModelScene } from "./noModelScene";
 import { isClick } from "./helpers/isClick";
 import { initCamera } from "./initCamera";
 import { initTourRoomAnalytics, syncRoomFromView } from "../analytics/fvAnalytics";
 
-/** Initial load: first cubemap 0–25%, GLB download 25–100%. Preloads don't touch the bar. */
-const LOAD_CUBEMAP_DONE = 25;
+/** Initial load: first cubemap 0–25%, GLB download 25–100%. Without model / hide panos = skip cubemap bar. */
+const LOAD_CUBEMAP_DONE = USE_MODEL && !HIDE_PANORAMS ? 25 : 100;
+
+/**
+ * Blender glTF often ships cm mesh data with node scale 0.01 (cm→m).
+ * Tour cameras are in Max cm — undo that scale so projectors sit inside the cage.
+ */
+function undoBlenderMeterScale(meshes) {
+  const seen = new Set();
+  for (const mesh of meshes) {
+    let node = mesh;
+    while (node) {
+      if (seen.has(node)) break;
+      seen.add(node);
+      const sx = node.scaling?.x;
+      if (
+        sx != null &&
+        Math.abs(sx - 0.01) < 1e-4 &&
+        Math.abs(node.scaling.y - 0.01) < 1e-4 &&
+        Math.abs(node.scaling.z - 0.01) < 1e-4
+      ) {
+        node.scaling.setAll(1);
+        // Translation was in meters; local mesh space already matches Max cm origin.
+        node.position.setAll(0);
+      }
+      node = node.parent;
+    }
+  }
+}
 
 function isAlive(scene, aborted) {
   return !aborted && !!scene && !scene.isDisposed;
@@ -48,6 +76,7 @@ export function useBabylonTour() {
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const projectMeshesRef = useRef([]);
+  const pickMeshesRef = useRef([]);
   const indexRef = useRef(0);
   const [currentIndex, setCurrent] = useState(0);
   const preloadedCubemapsRef = useRef({});
@@ -102,6 +131,7 @@ export function useBabylonTour() {
 
     preloadedCubemapsRef.current = {};
     projectMeshesRef.current = [];
+    pickMeshesRef.current = [];
     isAnimatingRef.current = false;
 
     const loadCubemap = createCubemapLoader(preloadedCubemapsRef);
@@ -134,9 +164,11 @@ export function useBabylonTour() {
       sceneRef.current = scene;
       scene.clearColor = new Color4(0.1, 0.1, 0.15, 1);
       hotspotHoverRef.current = null;
-      cursorApiRef.current = createProjectedCursor(scene, {
-        isOverHotspot: () => !!hotspotHoverRef.current,
-      });
+      cursorApiRef.current = USE_MODEL
+        ? createProjectedCursor(scene, {
+            isOverHotspot: () => !!hotspotHoverRef.current,
+          })
+        : null;
       const first = CONFIG.views[indexRef.current];
       const firstCubemapKey = cubemapKey(first);
 
@@ -147,9 +179,14 @@ export function useBabylonTour() {
       removeZoomRef.current = attachZoomControls(canvas, camera, lastTouchRef);
 
       try {
-        await loadCubemap(scene, firstCubemapKey);
-        if (!checkAlive()) return;
-        safeSetPercent(LOAD_CUBEMAP_DONE);
+        if (!HIDE_PANORAMS) {
+          await loadCubemap(scene, firstCubemapKey);
+          if (!checkAlive()) return;
+          safeSetPercent(LOAD_CUBEMAP_DONE);
+          preloadCubemapsSequential(scene, firstCubemapKey, loadCubemap, checkAlive);
+        } else {
+          safeSetPercent(LOAD_CUBEMAP_DONE);
+        }
       } catch (error) {
         console.error("[initCubemap]", firstCubemapKey, error);
         if (!checkAlive()) return;
@@ -157,12 +194,91 @@ export function useBabylonTour() {
         return;
       }
 
-      preloadCubemapsSequential(scene, firstCubemapKey, loadCubemap, checkAlive);
-
-      SceneLoader.ImportMesh("", import.meta.env.BASE_URL, "model.glb", scene, (meshes) => {
+      const finishSceneReady = () => {
         if (!checkAlive()) return;
+        if (projectMeshesRef.current.length === 0) {
+          safeSetError(
+            USE_MODEL
+              ? "3D model loaded empty. Please retry."
+              : "Couldn't set up the panorama scene. Please retry."
+          );
+          return;
+        }
+
+        hotspotsRef.current?.dispose();
+        hotspotsRef.current = createFloorHotspots(scene, {
+          getPickMeshes: () => pickMeshesRef.current,
+          hoverRef: hotspotHoverRef,
+        });
+        hotspotsRef.current.refresh(indexRef.current);
 
         safeSetPercent(100);
+        safeSetLoading(false);
+      };
+
+      if (USE_MODEL) {
+        SceneLoader.ImportMesh("", import.meta.env.BASE_URL, "model.glb", scene, (meshes) => {
+          if (!checkAlive()) return;
+
+          undoBlenderMeterScale(meshes);
+
+          projectMeshesRef.current = [];
+
+          if (HIDE_PANORAMS) {
+            // Projection shader is unlit; raw GLB needs lights or it renders black.
+            const hemi = new HemisphericLight("debugHemi", new Vector3(0.3, 1, 0.2), scene);
+            hemi.intensity = 1.1;
+            hemi.groundColor.set(0.35, 0.35, 0.4);
+
+            meshes.forEach((mesh) => {
+              if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) return;
+              mesh.isPickable = true;
+              mesh.renderingGroupId = 0;
+              projectMeshesRef.current.push({ mesh, material: mesh.material });
+            });
+          } else {
+            const cubemap1 = preloadedCubemapsRef.current[firstCubemapKey];
+            if (!cubemap1) {
+              safeSetError("Tour assets are incomplete. Please retry.");
+              return;
+            }
+
+            const cubemap2 = cubemap1;
+            const p = worldPos(first.position);
+            const projectorPos = new Vector3(p.x, p.y, p.z);
+
+            meshes.forEach((mesh) => {
+              if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) return;
+
+              const mat = createProjectionMaterial(scene, cubemap1, cubemap2, projectorPos, projectorPos);
+              mesh.material = mat;
+              mesh.isPickable = true;
+              mesh.renderingGroupId = 0;
+
+              projectMeshesRef.current.push({ mesh, material: mat });
+            });
+          }
+
+          pickMeshesRef.current = projectMeshesRef.current.map(({ mesh }) => mesh);
+          finishSceneReady();
+        }, (evt) => {
+          if (!checkAlive()) return;
+          if (evt.lengthComputable) {
+            const glbShare = evt.loaded / evt.total;
+            safeSetPercent(
+              Math.round(LOAD_CUBEMAP_DONE + glbShare * (100 - LOAD_CUBEMAP_DONE))
+            );
+          }
+        }, (error) => {
+          console.error("[ImportMesh]", error);
+          if (!checkAlive()) return;
+          safeSetError("Couldn't load the 3D model. Check your connection and try again.");
+        });
+      } else {
+        if (HIDE_PANORAMS) {
+          safeSetError("HIDE_PANORAMS needs USE_MODEL=true.");
+          return;
+        }
 
         const cubemap1 = preloadedCubemapsRef.current[firstCubemapKey];
         if (!cubemap1) {
@@ -170,54 +286,20 @@ export function useBabylonTour() {
           return;
         }
 
-        const cubemap2 = cubemap1;
-        const projectorPos = new Vector3(first.position.x, first.position.y, first.position.z);
-
-        projectMeshesRef.current = [];
-        meshes.forEach((mesh) => {
-          if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) return;
-
-          const mat = createProjectionMaterial(scene, cubemap1, cubemap2, projectorPos, projectorPos);
-          mesh.material = mat;
-          mesh.isPickable = true;
-          mesh.renderingGroupId = 0;
-
-          projectMeshesRef.current.push({ mesh, material: mat });
-        });
-
-        if (projectMeshesRef.current.length === 0) {
-          safeSetError("3D model loaded empty. Please retry.");
-          return;
-        }
-
-        hotspotsRef.current?.dispose();
-        hotspotsRef.current = createFloorHotspots(scene, {
-          getPickMeshes: () => projectMeshesRef.current.map(({ mesh }) => mesh),
-          hoverRef: hotspotHoverRef,
-        });
-        hotspotsRef.current.refresh(indexRef.current);
-
-        safeSetLoading(false);
-      }, (evt) => {
-        if (!checkAlive()) return;
-        if (evt.lengthComputable) {
-          const glbShare = evt.loaded / evt.total;
-          safeSetPercent(
-            Math.round(LOAD_CUBEMAP_DONE + glbShare * (100 - LOAD_CUBEMAP_DONE))
-          );
-        }
-      }, (error) => {
-        console.error("[ImportMesh]", error);
-        if (!checkAlive()) return;
-        safeSetError("Couldn't load the 3D model. Check your connection and try again.");
-      });
+        const p = worldPos(first.position);
+        const projectorPos = new Vector3(p.x, p.y, p.z);
+        const { projectMeshes, pickMeshes } = createNoModelScene(scene, cubemap1, projectorPos);
+        projectMeshesRef.current = projectMeshes;
+        pickMeshesRef.current = pickMeshes;
+        finishSceneReady();
+      }
 
       let pointerDownTime = 0;
       let pointerDownPos = null;
 
       scene.onPointerDown = (evt) => {
         if (isAnimatingRef.current) return;
-        if (evt.button !== 0 || projectMeshesRef.current.length === 0) return;
+        if (evt.button !== 0 || pickMeshesRef.current.length === 0) return;
 
         pointerDownTime = performance.now();
         pointerDownPos = { x: evt.clientX, y: evt.clientY };
@@ -225,7 +307,7 @@ export function useBabylonTour() {
 
       scene.onPointerUp = (evt, pickInfo) => {
         if (isAnimatingRef.current) return;
-        if (evt.button !== 0 || projectMeshesRef.current.length === 0) return;
+        if (evt.button !== 0 || pickMeshesRef.current.length === 0) return;
         if (isClick(pointerDownTime, pointerDownPos, evt)) {
           const hotspotViewId = hotspotsRef.current?.viewIdFromPick(pickInfo);
           const nextViewId =
@@ -276,8 +358,11 @@ export function useBabylonTour() {
       sceneRef.current = null;
       cameraRef.current = null;
       projectMeshesRef.current = [];
+      pickMeshesRef.current = [];
       preloadedCubemapsRef.current = {};
       loadCubemapRef.current = null;
+      const canvas = canvasRef.current;
+      if (canvas) canvas.style.filter = "";
     };
   }, [bootId]);
 
