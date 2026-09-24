@@ -3,7 +3,14 @@ import { Engine, Scene, Color4, Vector3, SceneLoader, HemisphericLight } from "@
 import "@babylonjs/loaders";
 import { CONFIG, USE_MODEL, HIDE_PANORAMS, cubemapKey, worldPos } from "./config";
 import { registerShaders } from "./shaders";
-import { createCubemapLoader, createProjectionMaterial } from "./useCubemapsAndMaterials";
+import {
+  createCubemapLoader,
+  createProjectionMaterial,
+  setMaterialPanoOpacity,
+  setMaterialYaw,
+  updateMaterialProjection,
+  viewYawDegrees,
+} from "./useCubemapsAndMaterials";
 import { pickNextViewFromClick } from "./pickNextViewFromClick";
 import { goToNextPoint } from "./goToNextPoint";
 import { attachTouchControls } from "./touchControls";
@@ -86,25 +93,58 @@ export function useBabylonTour() {
   const [loadingPercent, setLoadingPercent] = useState(0);
   const [loadError, setLoadError] = useState(null);
   const [bootId, setBootId] = useState(0);
+  const [panoramasVisible, setPanoramasVisible] = useState(!HIDE_PANORAMS);
+  const [alignMode, setAlignMode] = useState(false);
+  const [yawDegrees, setYawDegrees] = useState(() =>
+    viewYawDegrees(CONFIG.views[0])
+  );
   const aliveRef = useRef(true);
   const loadCubemapRef = useRef(null);
   const cursorApiRef = useRef(null);
   const hotspotsRef = useRef(null);
   const hotspotHoverRef = useRef(null);
+  const hidePanoramsRef = useRef(HIDE_PANORAMS);
+  const debugLightRef = useRef(null);
   const removeResizeRef = useRef(null);
   const removeZoomRef = useRef(null);
   const removeDesktopLookRef = useRef(null);
   const removeTouchRef = useRef(null);
+  const yawDegreesRef = useRef(yawDegrees);
+  const alignModeRef = useRef(false);
+  const panoOpacityRef = useRef(1);
 
   useEffect(() => {
     indexRef.current = currentIndex;
     hotspotsRef.current?.refresh(currentIndex);
+    const view = CONFIG.views[currentIndex];
+    if (!view) return;
+    const y = viewYawDegrees(view);
+    yawDegreesRef.current = y;
+    setYawDegrees(y);
+    applyYawToMeshes(y);
   }, [currentIndex]);
 
   useEffect(() => {
     const view = CONFIG.views[currentIndex];
     if (view) syncRoomFromView(view);
   }, [currentIndex]);
+
+  const applyYawToMeshes = (yawDeg, yaw2Deg = yawDeg) => {
+    for (const item of projectMeshesRef.current) {
+      if (item.material && !item.material.isDisposed?.()) {
+        setMaterialYaw(item.material, yawDeg, yaw2Deg);
+      }
+    }
+  };
+
+  const applyOpacityToMeshes = (opacity) => {
+    panoOpacityRef.current = opacity;
+    for (const item of projectMeshesRef.current) {
+      if (item.material && !item.material.isDisposed?.()) {
+        setMaterialPanoOpacity(item.material, opacity);
+      }
+    }
+  };
 
   useEffect(() => {
     let aborted = false;
@@ -133,6 +173,17 @@ export function useBabylonTour() {
     projectMeshesRef.current = [];
     pickMeshesRef.current = [];
     isAnimatingRef.current = false;
+    hidePanoramsRef.current = HIDE_PANORAMS;
+    debugLightRef.current = null;
+    alignModeRef.current = false;
+    panoOpacityRef.current = 1;
+    if (!aborted) {
+      setPanoramasVisible(!HIDE_PANORAMS);
+      setAlignMode(false);
+      const y0 = viewYawDegrees(CONFIG.views[0]);
+      yawDegreesRef.current = y0;
+      setYawDegrees(y0);
+    }
 
     const loadCubemap = createCubemapLoader(preloadedCubemapsRef);
     loadCubemapRef.current = loadCubemap;
@@ -147,6 +198,8 @@ export function useBabylonTour() {
           projectMeshesRef,
           indexRef,
           setCurrent: safeSetCurrent,
+          hidePanoramsRef,
+          yawDegreesRef,
         },
         loadCubemapRef.current
       );
@@ -229,12 +282,17 @@ export function useBabylonTour() {
             const hemi = new HemisphericLight("debugHemi", new Vector3(0.3, 1, 0.2), scene);
             hemi.intensity = 1.1;
             hemi.groundColor.set(0.35, 0.35, 0.4);
+            debugLightRef.current = hemi;
 
             meshes.forEach((mesh) => {
               if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) return;
               mesh.isPickable = true;
               mesh.renderingGroupId = 0;
-              projectMeshesRef.current.push({ mesh, material: mesh.material });
+              projectMeshesRef.current.push({
+                mesh,
+                material: null,
+                originalMaterial: mesh.material,
+              });
             });
           } else {
             const cubemap1 = preloadedCubemapsRef.current[firstCubemapKey];
@@ -250,12 +308,29 @@ export function useBabylonTour() {
             meshes.forEach((mesh) => {
               if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0) return;
 
-              const mat = createProjectionMaterial(scene, cubemap1, cubemap2, projectorPos, projectorPos);
+              const originalMaterial = mesh.material;
+              const mat = createProjectionMaterial(
+                scene,
+                cubemap1,
+                cubemap2,
+                projectorPos,
+                projectorPos,
+                {
+                  originalMaterial,
+                  yawDeg: yawDegreesRef.current,
+                  yaw2Deg: yawDegreesRef.current,
+                  panoOpacity: panoOpacityRef.current,
+                }
+              );
               mesh.material = mat;
               mesh.isPickable = true;
               mesh.renderingGroupId = 0;
 
-              projectMeshesRef.current.push({ mesh, material: mat });
+              projectMeshesRef.current.push({
+                mesh,
+                material: mat,
+                originalMaterial,
+              });
             });
           }
 
@@ -378,6 +453,8 @@ export function useBabylonTour() {
         setCurrent: (value) => {
           if (aliveRef.current) setCurrent(value);
         },
+        hidePanoramsRef,
+        yawDegreesRef,
       },
       loadCubemapRef.current
     );
@@ -394,6 +471,131 @@ export function useBabylonTour() {
     hotspotsRef.current?.setVisible(visible);
   };
 
+  const nudgeYaw = (delta) => {
+    if (!USE_MODEL || loading || loadError || hidePanoramsRef.current) return;
+    const next = Math.round((yawDegreesRef.current + delta) * 10) / 10;
+    yawDegreesRef.current = next;
+    setYawDegrees(next);
+    applyYawToMeshes(next);
+  };
+
+  const setYawDegreesValue = (value) => {
+    if (!USE_MODEL || loading || loadError || hidePanoramsRef.current) return;
+    const next = Math.round((Number(value) || 0) * 10) / 10;
+    yawDegreesRef.current = next;
+    setYawDegrees(next);
+    applyYawToMeshes(next);
+  };
+
+  const toggleAlignMode = async () => {
+    if (!USE_MODEL || loading || loadError || isAnimatingRef.current) return;
+
+    if (!alignModeRef.current) {
+      if (hidePanoramsRef.current) {
+        await togglePanoramas();
+        if (hidePanoramsRef.current) return;
+      }
+      alignModeRef.current = true;
+      setAlignMode(true);
+      applyOpacityToMeshes(0.5);
+      return;
+    }
+
+    alignModeRef.current = false;
+    setAlignMode(false);
+    applyOpacityToMeshes(1);
+  };
+
+  const togglePanoramas = async () => {
+    if (!USE_MODEL || loading || loadError || isAnimatingRef.current) return;
+
+    const scene = sceneRef.current;
+    const items = projectMeshesRef.current;
+    if (!scene || items.length === 0) return;
+
+    const currentlyHidden = hidePanoramsRef.current;
+
+    if (!currentlyHidden) {
+      // Hide panos → show raw GLB materials.
+      hidePanoramsRef.current = true;
+      setPanoramasVisible(false);
+
+      if (alignModeRef.current) {
+        alignModeRef.current = false;
+        setAlignMode(false);
+        panoOpacityRef.current = 1;
+      }
+
+      if (!debugLightRef.current || debugLightRef.current.isDisposed?.()) {
+        const hemi = new HemisphericLight("debugHemi", new Vector3(0.3, 1, 0.2), scene);
+        hemi.intensity = 1.1;
+        hemi.groundColor.set(0.35, 0.35, 0.4);
+        debugLightRef.current = hemi;
+      } else {
+        debugLightRef.current.setEnabled(true);
+      }
+
+      items.forEach(({ mesh, originalMaterial }) => {
+        mesh.material = originalMaterial;
+      });
+      return;
+    }
+
+    // Show panos → restore projection materials for current view.
+    const view = CONFIG.views[indexRef.current];
+    const loadCubemap = loadCubemapRef.current;
+    if (!view || !loadCubemap) return;
+
+    try {
+      const cubemap = await loadCubemap(scene, cubemapKey(view));
+      if (!aliveRef.current || scene.isDisposed) return;
+
+      const p = worldPos(view.position);
+      const projectorPos = new Vector3(p.x, p.y, p.z);
+      const yawDeg = yawDegreesRef.current;
+      const opacity = alignModeRef.current ? 0.5 : panoOpacityRef.current;
+
+      for (const item of items) {
+        let mat = item.material;
+        if (!mat || mat.isDisposed?.()) {
+          mat = createProjectionMaterial(
+            scene,
+            cubemap,
+            cubemap,
+            projectorPos,
+            projectorPos,
+            {
+              originalMaterial: item.originalMaterial,
+              yawDeg,
+              yaw2Deg: yawDeg,
+              panoOpacity: opacity,
+            }
+          );
+          item.material = mat;
+        } else {
+          mat.setTexture("cubemap", cubemap);
+          mat.setTexture("cubemap2", cubemap);
+          mat.setFloat("mixFactor", 0);
+          setMaterialYaw(mat, yawDeg, yawDeg);
+          setMaterialPanoOpacity(mat, opacity);
+          updateMaterialProjection(mat, projectorPos, projectorPos, 0);
+        }
+        item.mesh.material = mat;
+      }
+
+      panoOpacityRef.current = opacity;
+
+      if (debugLightRef.current && !debugLightRef.current.isDisposed?.()) {
+        debugLightRef.current.setEnabled(false);
+      }
+
+      hidePanoramsRef.current = false;
+      setPanoramasVisible(true);
+    } catch (error) {
+      console.error("[togglePanoramas]", error);
+    }
+  };
+
   return {
     canvasRef,
     engineRef,
@@ -402,8 +604,15 @@ export function useBabylonTour() {
     loading,
     loadingPercent,
     loadError,
+    panoramasVisible,
+    alignMode,
+    yawDegrees,
     navigateTo,
     retry,
     setOverlaysVisible,
+    togglePanoramas,
+    toggleAlignMode,
+    nudgeYaw,
+    setYawDegreesValue,
   };
 }

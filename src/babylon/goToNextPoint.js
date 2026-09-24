@@ -1,7 +1,11 @@
 import { Vector3 } from "@babylonjs/core";
-import { CONFIG, USE_MODEL, HIDE_PANORAMS, cubemapKey, worldPos } from "./config";
+import { CONFIG, USE_MODEL, cubemapKey, worldPos } from "./config";
 import { easeInOutCubic } from "./easing";
-import { updateMaterialProjection } from "./useCubemapsAndMaterials";
+import {
+  setMaterialYaw,
+  updateMaterialProjection,
+  viewYawDegrees,
+} from "./useCubemapsAndMaterials";
 import { syncNoModelSkybox } from "./noModelScene";
 
 const MODEL_ANIM_FRAMES = 80;
@@ -36,6 +40,8 @@ export const goToNextPoint = async (viewId, refs, loadCubemap) => {
     projectMeshesRef,
     indexRef,
     setCurrent,
+    hidePanoramsRef,
+    yawDegreesRef,
   } = refs;
 
   if (isAnimatingRef.current) return;
@@ -59,8 +65,8 @@ export const goToNextPoint = async (viewId, refs, loadCubemap) => {
     const currPos = toVec3(curr.position);
     const nextPos = toVec3(next.position);
 
-    // Debug: fly camera only, leave GLB materials alone.
-    if (HIDE_PANORAMS) {
+    // Model-only view: fly camera, leave GLB materials alone.
+    if (hidePanoramsRef?.current) {
       let animProgress = 0;
       animationStarted = true;
       const observer = scene.onBeforeRenderObservable.add(() => {
@@ -77,9 +83,12 @@ export const goToNextPoint = async (viewId, refs, loadCubemap) => {
     }
 
     const nextCubemap = await loadCubemap(scene, cubemapKey(next));
+    const currYaw = yawDegreesRef?.current ?? viewYawDegrees(curr);
+    const nextYaw = viewYawDegrees(next);
 
     projectMeshesRef.current.forEach((item) => {
       item.material.setTexture("cubemap2", nextCubemap);
+      setMaterialYaw(item.material, currYaw, nextYaw);
     });
 
     if (!USE_MODEL) {
@@ -118,6 +127,7 @@ export const goToNextPoint = async (viewId, refs, loadCubemap) => {
           item.material.setTexture("cubemap", nextCubemap);
           item.material.setTexture("cubemap2", nextCubemap);
           item.material.setFloat("mixFactor", 0.0);
+          setMaterialYaw(item.material, nextYaw, nextYaw);
           updateMaterialProjection(item.material, nextPos, nextPos, 0.0);
         });
 
@@ -164,9 +174,9 @@ function runBlurTransition({
         item.material.setTexture("cubemap", nextCubemap);
         item.material.setTexture("cubemap2", nextCubemap);
         item.material.setFloat("mixFactor", 0.0);
+        setMaterialYaw(item.material, viewYawDegrees(CONFIG.views[nextIndex]));
         syncNoModelSkybox(item.mesh, item.material, nextPos);
       });
-
       setCurrent(nextIndex);
     }
 

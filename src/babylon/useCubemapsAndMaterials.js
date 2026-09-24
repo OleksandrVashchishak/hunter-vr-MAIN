@@ -1,4 +1,44 @@
-import { CubeTexture, Texture, ShaderMaterial } from "@babylonjs/core";
+import { Color3, CubeTexture, RawTexture, Texture, ShaderMaterial } from "@babylonjs/core";
+
+let whiteTexture = null;
+let projectionMaterialSeq = 0;
+
+function getWhiteTexture(scene) {
+  if (whiteTexture && !whiteTexture.isDisposed?.()) return whiteTexture;
+  whiteTexture = RawTexture.CreateRGBATexture(
+    new Uint8Array([255, 255, 255, 255]),
+    1,
+    1,
+    scene,
+    false,
+    false,
+    Texture.NEAREST_SAMPLINGMODE
+  );
+  whiteTexture.name = "projectionBaseWhite";
+  return whiteTexture;
+}
+
+/** Degrees → radians for the projection shader. */
+export function yawToRad(degrees) {
+  return ((Number(degrees) || 0) * Math.PI) / 180;
+}
+
+export function viewYawDegrees(view) {
+  return Number(view?.yaw) || 0;
+}
+
+function bindBaseFromOriginal(shaderMaterial, originalMaterial, scene) {
+  const tex =
+    originalMaterial?.albedoTexture ||
+    originalMaterial?.diffuseTexture ||
+    null;
+  const factor = new Color3(1, 1, 1);
+  const src = originalMaterial?.albedoColor || originalMaterial?.diffuseColor;
+  if (src) factor.copyFrom(src);
+
+  shaderMaterial.setTexture("baseColor", tex || getWhiteTexture(scene));
+  shaderMaterial.setColor3("baseColorFactor", factor);
+}
 
 export function createCubemapLoader(preloadedCubemapsRef) {
   const pendingLoads = Object.create(null);
@@ -54,9 +94,19 @@ export function createCubemapLoader(preloadedCubemapsRef) {
   };
 }
 
-let projectionMaterialSeq = 0;
-
-export function createProjectionMaterial(scene, cubemap, cubemap2, projectorPos, projectorPos2) {
+export function createProjectionMaterial(
+  scene,
+  cubemap,
+  cubemap2,
+  projectorPos,
+  projectorPos2,
+  {
+    originalMaterial = null,
+    yawDeg = 0,
+    yaw2Deg = 0,
+    panoOpacity = 1,
+  } = {}
+) {
   const shaderMaterial = new ShaderMaterial(
     `projectionShader_${++projectionMaterialSeq}`,
     scene,
@@ -65,15 +115,19 @@ export function createProjectionMaterial(scene, cubemap, cubemap2, projectorPos,
       fragment: "projection",
     },
     {
-      attributes: ["position"],
+      attributes: ["position", "normal", "uv"],
       uniforms: [
         "world",
         "worldViewProjection",
         "projectorPosition",
         "projectorPosition2",
         "mixFactor",
+        "yaw",
+        "yaw2",
+        "panoOpacity",
+        "baseColorFactor",
       ],
-      samplers: ["cubemap", "cubemap2"],
+      samplers: ["cubemap", "cubemap2", "baseColor"],
     }
   );
 
@@ -82,6 +136,10 @@ export function createProjectionMaterial(scene, cubemap, cubemap2, projectorPos,
   shaderMaterial.setVector3("projectorPosition", projectorPos);
   shaderMaterial.setVector3("projectorPosition2", projectorPos2);
   shaderMaterial.setFloat("mixFactor", 0.0);
+  shaderMaterial.setFloat("yaw", yawToRad(yawDeg));
+  shaderMaterial.setFloat("yaw2", yawToRad(yaw2Deg));
+  shaderMaterial.setFloat("panoOpacity", panoOpacity);
+  bindBaseFromOriginal(shaderMaterial, originalMaterial, scene);
   shaderMaterial.backFaceCulling = false;
 
   return shaderMaterial;
@@ -91,4 +149,13 @@ export function updateMaterialProjection(material, projectorPos, projectorPos2, 
   material.setVector3("projectorPosition", projectorPos);
   material.setVector3("projectorPosition2", projectorPos2);
   material.setFloat("mixFactor", mixFactor);
+}
+
+export function setMaterialYaw(material, yawDeg, yaw2Deg = yawDeg) {
+  material.setFloat("yaw", yawToRad(yawDeg));
+  material.setFloat("yaw2", yawToRad(yaw2Deg));
+}
+
+export function setMaterialPanoOpacity(material, opacity) {
+  material.setFloat("panoOpacity", opacity);
 }

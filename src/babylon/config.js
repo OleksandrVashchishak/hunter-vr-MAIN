@@ -8,7 +8,7 @@ export const USE_MODEL = true;
  * true  — skip cubemaps; keep GLB materials (debug scale / cage)
  * false — normal projected panoramas
  */
-export const HIDE_PANORAMS = true;
+export const HIDE_PANORAMS = false;
 
 /**
  * Horizontal cam frame (Y/height stays as in config — already looks ok).
@@ -64,6 +64,9 @@ export function worldPos({ x, y, z }) {
  * Hall2 Cam002, Hall Cam001-add.
  * bathroom-4: no modeler coords — midpoint of Bedroom 4.
  * mudroom-2: Cam002 was stair duplicate — approximate near mudroom-1.
+ *
+ * Optional per-view: `yaw` (degrees) — cubemap rotation around world Y
+ * so a wrongly oriented bake aligns to the model. Tune via Align mode in toolbar.
  */
 export const CONFIG = {
   views: [
@@ -255,6 +258,7 @@ export const CONFIG = {
       look: { x: -956.286, y: 183.014, z: 1476.864 },
       views: ["stair-foyer-2", "stair-foyer-3", "mudroom-1", "lower-powder", "entry-hall-2"],
       room: "Stair Foyer",
+      yaw: 89,
     },
     {
       id: "stair-foyer-2",
@@ -262,6 +266,7 @@ export const CONFIG = {
       look: { x: -838.593, y: 183.014, z: 1163.529 },
       views: ["stair-foyer-1", "stair-foyer-3", "game-room-2", "bedroom-1-2"],
       room: "Stair Foyer",
+      yaw: 180,
     },
     {
       id: "stair-foyer-3",
@@ -269,6 +274,7 @@ export const CONFIG = {
       look: { x: -838.593, y: 183.014, z: 1163.529 },
       views: ["stair-foyer-1", "stair-foyer-2", "mudroom-1", "wellness-1", "entry-hall-2"],
       room: "Stair Foyer",
+      yaw: 180,
     },
     {
       id: "mudroom-1",

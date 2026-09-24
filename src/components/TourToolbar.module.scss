@@ -1,0 +1,16 @@
+$mobile: 900px;
+
+// Sit left of WP Menu: padding-right 55 + Menu ~109 + gap 14
+.root {
+  position: absolute;
+  top: 60px;
+  right: 178px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  @media (max-width: $mobile) {
+    display: none;
+  }
+}

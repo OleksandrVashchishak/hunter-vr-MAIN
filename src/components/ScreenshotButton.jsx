@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Tools } from "@babylonjs/core";
-import styles from "./ScreenshotButton.module.scss";
+import styles from "./GlassIconButton.module.scss";
 import cameraIcon from "../assets/icons/camera.svg";
 
 function downloadDataUrl(dataUrl, filename) {
@@ -56,7 +56,7 @@ const ScreenshotButton = ({
       aria-label="Take photo"
       title="Take photo"
     >
-      <img className={styles.icon} src={cameraIcon} alt="" />
+      <img className={`${styles.icon} ${styles.iconCamera}`} src={cameraIcon} alt="" />
     </button>
   );
 };
