@@ -1,4 +1,10 @@
 /**
+ * true  — show debug toolbar (align + panorama/model toggle)
+ * false — hide those buttons in production
+ */
+export const DEV_MODE = true;
+
+/**
  * true  — GLB + camera fly + dual-cubemap projection
  * false — no model; panoramas on a skybox; transitions via canvas blur
  */
@@ -130,22 +136,25 @@ export const CONFIG = {
       id: "primary-hall-1",
       position: { x: -51.59, y: 905.829, z: 1184.943 },
       look: { x: -205.162, y: 905.829, z: 1184.943 },
-      views: ["primary-hall-2", "primary-bedroom-1", "primary-bedroom-3", "office-2"],
+      views: ["primary-hall-2", "primary-bedroom-1", "primary-bedroom-2", "primary-bedroom-3", "office-1", "office-2"],
       room: "Primary Hall",
+      yaw: 90,
     },
     {
       id: "primary-hall-2",
       position: { x: -205.162, y: 905.829, z: 1184.943 },
       look: { x: -51.59, y: 905.829, z: 1184.943 },
-      views: ["primary-hall-1", "primary-hall-3", "primary-bathroom-2", "closet"],
+      views: ["primary-hall-1", "primary-hall-3", "primary-bathroom-1", "primary-bathroom-2", "closet"],
       room: "Primary Hall",
+      yaw: 90,
     },
     {
       id: "primary-hall-3",
       position: { x: -783.491, y: 905.829, z: 1246.964 },
       look: { x: -205.162, y: 905.829, z: 1184.943 },
-      views: ["primary-hall-2", "primary-bathroom-1", "bedroom-4-1", "office-bathroom-1"],
+      views: ["primary-hall-2", "primary-bathroom-1", "bedroom-4-1", "bedroom-4-2", "office-bathroom-1"],
       room: "Primary Hall",
+      yaw: 90,
     },
     {
       id: "bedroom-4-1",
@@ -248,7 +257,7 @@ export const CONFIG = {
       id: "entry-hall-2",
       position: { x: -774.5, y: 555.647, z: 1023.059 },
       look: { x: -774.5, y: 555.647, z: 1157.144 },
-      views: ["entry-hall-1", "kitchen", "main-powder", "stair-foyer-3"],
+      views: ["entry-hall-1", "kitchen", "main-powder", "stair-foyer-1", "stair-foyer-3"],
       room: "Entry Hall",
     },
     {
@@ -287,7 +296,7 @@ export const CONFIG = {
       id: "main-powder",
       position: { x: -1275.452, y: 555.647, z: 946.044 },
       look: { x: -774.5, y: 555.647, z: 1157.144 },
-      views: ["entry-hall-1", "bedroom-3-1", "bathroom-3-1"],
+      views: ["entry-hall-1", "entry-hall-2", "bedroom-3-1", "bathroom-3-1"],
       room: "Main Powder Room",
       yaw: 25,
     },
@@ -295,7 +304,7 @@ export const CONFIG = {
       id: "stair-foyer-1",
       position: { x: -838.593, y: 183.014, z: 1163.529 },
       look: { x: -956.286, y: 183.014, z: 1476.864 },
-      views: ["stair-foyer-2", "stair-foyer-3", "mudroom-1", "lower-powder", "entry-hall-2"],
+      views: ["stair-foyer-2", "stair-foyer-3", "mudroom-1", "mudroom-2", "lower-powder", "entry-hall-2"],
       room: "Stair Foyer",
       yaw: 90,
     },
@@ -319,7 +328,7 @@ export const CONFIG = {
       id: "mudroom-1",
       position: { x: -657.957, y: 153.053, z: 685.729 },
       look: { x: -750.0, y: 153.053, z: 800.0 },
-      views: ["mudroom-2", "stair-foyer-3", "lower-powder"],
+      views: ["mudroom-2", "stair-foyer-1", "stair-foyer-3", "lower-powder"],
       room: "Mudroom",
       yaw: 90,
     },
@@ -334,7 +343,7 @@ export const CONFIG = {
       id: "gym-1",
       position: { x: 232.278, y: 124.317, z: 1376.012 },
       look: { x: 118.884, y: 124.317, z: 1177.007 },
-      views: ["gym-2", "bathroom-2-1", "massage-1"],
+      views: ["gym-2", "bathroom-2-1", "bedroom-2-1", "massage-1"],
       room: "Gym",
       yaw: 170,
     },
@@ -342,7 +351,7 @@ export const CONFIG = {
       id: "gym-2",
       position: { x: -4.377, y: 152.002, z: 1177.007 },
       look: { x: 232.278, y: 152.002, z: 1376.012 },
-      views: ["gym-1",  "wellness-2", "massage-2"],
+      views: ["gym-1", "wellness-1", "wellness-2", "massage-2"],
       room: "Gym",
       yaw: 143,
     },
@@ -357,7 +366,7 @@ export const CONFIG = {
       id: "wellness-1",
       position: { x: -380.193, y: 152.53, z: 1114.33 },
       look: { x: -380.294, y: 152.53, z: 1223.585 },
-      views: ["wellness-2", "gym-3", "stair-foyer-3", "sauna-3"],
+      views: ["wellness-2", "gym-2", "stair-foyer-3", "sauna-3"],
       room: "Wellness Area",
       yaw: 180,
     },
@@ -396,7 +405,7 @@ export const CONFIG = {
       id: "massage-1",
       position: { x: -137.001, y: 181.668, z: 1581.067 },
       look: { x: -309.749, y: 181.668, z: 1467.755 },
-      views: ["massage-2", "sauna-1", "gym-1"],
+      views: ["massage-2", "sauna-1", "sauna-2", "gym-1"],
       room: "Massage Room",
       yaw: -80,
     },

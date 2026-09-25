@@ -40,12 +40,15 @@ function bindBaseFromOriginal(shaderMaterial, originalMaterial, scene) {
   shaderMaterial.setColor3("baseColorFactor", factor);
 }
 
-/** Soft cap on resident cubemaps in VRAM (current + neighbors fit in typical degree ≤4). */
-export const CUBEMAP_CACHE_MAX = 5;
+/**
+ * Soft cap on resident cubemaps in VRAM.
+ * Sized for a full floor (~24–26 keys on Floor I) so pin(floor) does not fight LRU.
+ */
+export const CUBEMAP_CACHE_MAX = 32;
 
 /**
  * On-demand cubemap loader with LRU eviction.
- * Pin keys that are bound to materials (current, and next during a transition)
+ * Pin keys that are bound to materials (current floor / transition targets)
  * so they are never disposed mid-frame.
  *
  * @param {{ maxSize?: number, loadTexture?: (scene: unknown, name: string) => Promise<import('@babylonjs/core').CubeTexture> }} [options]
@@ -72,6 +75,17 @@ export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } 
     pinned = new Set((keys || []).filter(Boolean));
   }
 
+  function disposeEntry(key) {
+    const entry = entries.get(key);
+    if (!entry) return;
+    entries.delete(key);
+    try {
+      entry.texture.dispose();
+    } catch {
+      /* ignore */
+    }
+  }
+
   function evictIfNeeded() {
     while (entries.size > maxSize) {
       let victimKey = null;
@@ -84,14 +98,16 @@ export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } 
         }
       }
       if (!victimKey) break;
+      disposeEntry(victimKey);
+    }
+  }
 
-      const entry = entries.get(victimKey);
-      entries.delete(victimKey);
-      try {
-        entry.texture.dispose();
-      } catch {
-        /* ignore */
-      }
+  /** Dispose everything except keepKeys and currently pinned keys. */
+  function retainOnly(keepKeys) {
+    const keep = new Set((keepKeys || []).filter(Boolean));
+    for (const key of [...entries.keys()]) {
+      if (keep.has(key) || pinned.has(key)) continue;
+      disposeEntry(key);
     }
   }
 
@@ -196,33 +212,46 @@ export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } 
   }
 
   /**
-   * Background-load keys (e.g. all neighbors). Does not pin.
+   * Background-load keys (e.g. full floor). Does not pin.
    * A newer warm() call cancels an in-flight warm loop.
    * Late completions from a cancelled warm are demoted so they lose LRU races.
+   * @param {(progress: { done: number, total: number }) => void} [onProgress]
    */
-  async function warm(scene, keysToWarm, checkAlive) {
+  async function warm(scene, keysToWarm, checkAlive, onProgress) {
     if (disposed || !scene || scene.isDisposed) return;
+    const list = (keysToWarm || []).filter(Boolean);
+    const total = list.length;
     const gen = ++warmGeneration;
-    for (const key of keysToWarm || []) {
+    let done = 0;
+
+    const report = () => {
+      onProgress?.({ done, total });
+    };
+
+    for (const key of list) {
       if (gen !== warmGeneration) return;
       if (checkAlive && !checkAlive()) return;
-      if (!key) continue;
       if (entries.has(key)) {
         touch(key);
+        done += 1;
+        report();
         continue;
       }
       try {
         await get(scene, key);
+        if (gen !== warmGeneration) {
+          demote(key);
+          evictIfNeeded();
+          return;
+        }
+        done += 1;
+        report();
       } catch (error) {
         if (disposed || gen !== warmGeneration) return;
         if (checkAlive && !checkAlive()) return;
         console.error("[warmCubemap]", key, error);
-        continue;
-      }
-      if (gen !== warmGeneration) {
-        demote(key);
-        evictIfNeeded();
-        return;
+        done += 1;
+        report();
       }
     }
   }
@@ -244,7 +273,7 @@ export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } 
     pinned = new Set();
   }
 
-  return { get, peek, pin, touch, warm, evictIfNeeded, disposeAll, size, keys };
+  return { get, peek, pin, touch, warm, retainOnly, evictIfNeeded, disposeAll, size, keys };
 }
 
 export function createProjectionMaterial(
@@ -293,7 +322,10 @@ export function createProjectionMaterial(
   shaderMaterial.setFloat("yaw2", yawToRad(yaw2Deg));
   shaderMaterial.setFloat("panoOpacity", panoOpacity);
   bindBaseFromOriginal(shaderMaterial, originalMaterial, scene);
-  shaderMaterial.backFaceCulling = false;
+  // Cage glass/walls often ship as thin double-sided shells. Rendering both
+  // faces causes z-fight (black panes / outdoor texture punching through).
+  // Interior normals face the room — cull backs.
+  shaderMaterial.backFaceCulling = true;
 
   return shaderMaterial;
 }

@@ -212,19 +212,40 @@ export function getMinimapRooms(floor) {
     .filter(Boolean);
 }
 
-export function findFloorForViewId(viewId) {
-  if (!viewId) return null;
+/** Match room on a floor by entry viewId, or by shared room label (any panorama). */
+export function findRoomOnFloor(floor, viewId, roomLabel) {
+  if (!floor) return null;
+  const rooms = getListRooms(floor);
+  return (
+    rooms.find((room) => room.viewId && room.viewId === viewId) ||
+    (roomLabel ? rooms.find((room) => room.label === roomLabel) : null) ||
+    null
+  );
+}
+
+export function findFloorForViewId(viewId, roomLabel) {
+  if (viewId) {
+    const byView = FLOORS.find((floor) =>
+      Object.values(floor.rooms).some((room) => room.viewId === viewId),
+    );
+    if (byView) return byView;
+  }
+  if (!roomLabel) return null;
   return (
     FLOORS.find((floor) =>
-      Object.values(floor.rooms).some((room) => room.viewId === viewId)
+      Object.values(floor.rooms).some((room) => room.label === roomLabel),
     ) || null
   );
 }
 
-export function getActiveHotspot(floor, viewId) {
-  if (!floor || !viewId) return null;
+export function getActiveHotspot(floor, viewId, roomLabel) {
+  if (!floor || (!viewId && !roomLabel)) return null;
   const rooms = getMinimapRooms(floor);
-  const index = rooms.findIndex((room) => room.viewId === viewId);
+  let index = viewId ? rooms.findIndex((room) => room.viewId === viewId) : -1;
+  // Secondary panoramas share a room label but not the entry viewId.
+  if (index < 0 && roomLabel) {
+    index = floor.minimapOrder.findIndex((id) => floor.rooms[id]?.label === roomLabel);
+  }
   if (index < 0) return null;
   const point = floor.hotspots[index];
   if (!point) return null;

@@ -1,5 +1,5 @@
 import { Vector3 } from "@babylonjs/core";
-import { CONFIG, USE_MODEL, cubemapKey, neighborCubemapKeys, worldPos } from "./config";
+import { CONFIG, USE_MODEL, cubemapKey, worldPos } from "./config";
 import { easeInOutCubic } from "./easing";
 import {
   setMaterialYaw,
@@ -32,17 +32,24 @@ function toVec3(p) {
   return new Vector3(w.x, w.y, w.z);
 }
 
-function settleCubemapCache(cache, scene, nextView) {
+function settleCubemapCache(cache, nextView) {
   if (!cache || !nextView) return;
   const nextKey = cubemapKey(nextView);
-  cache.pin([nextKey]);
   cache.touch(nextKey);
-  cache.evictIfNeeded();
-  const alive = () => !!scene && !scene.isDisposed;
-  void cache.warm(scene, neighborCubemapKeys(nextView), alive);
+  // Floor is already pinned/resident after ensureFloorCubemaps — don't rebuild
+  // the key list or retainOnly on every room hop.
 }
 
-export const goToNextPoint = async (viewId, refs, cubemapCache) => {
+/**
+ * @param {string} viewId
+ * @param {object} refs
+ * @param {object} cubemapCache
+ * @param {{ transition?: "walk" | "blur" }} [options]
+ *   walk — camera lerp (hotspots / floor click)
+ *   blur — canvas blur + teleport (RoomSelector / Minimap)
+ *   default: walk when USE_MODEL, else blur
+ */
+export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) => {
   const {
     isAnimatingRef,
     sceneRef,
@@ -53,6 +60,9 @@ export const goToNextPoint = async (viewId, refs, cubemapCache) => {
     hidePanoramsRef,
     yawDegreesRef,
   } = refs;
+
+  const transition =
+    options.transition ?? (USE_MODEL ? "walk" : "blur");
 
   if (isAnimatingRef.current) return;
   isAnimatingRef.current = true;
@@ -97,22 +107,30 @@ export const goToNextPoint = async (viewId, refs, cubemapCache) => {
 
     const currKey = cubemapKey(curr);
     const nextKey = cubemapKey(next);
-    cubemapCache?.pin([currKey, nextKey]);
+    // Keep the whole floor pinned — never shrink to curr+next mid-walk
+    // (that used to open the door for LRU eviction of the rest of the floor).
+    cubemapCache?.touch(currKey);
+    cubemapCache?.touch(nextKey);
 
     if (!cubemapCache) {
       throw new Error("Cubemap cache is not ready");
     }
 
-    const nextCubemap = await cubemapCache.get(scene, nextKey);
+    // Sync path when already warm — avoid await microtask hitch before anim starts.
+    const nextCubemap =
+      cubemapCache.peek(nextKey) || (await cubemapCache.get(scene, nextKey));
     const currYaw = yawDegreesRef?.current ?? viewYawDegrees(curr);
     const nextYaw = viewYawDegrees(next);
 
-    projectMeshesRef.current.forEach((item) => {
-      item.material.setTexture("cubemap2", nextCubemap);
-      setMaterialYaw(item.material, currYaw, nextYaw);
-    });
+    const items = projectMeshesRef.current;
+    for (let i = 0; i < items.length; i++) {
+      const mat = items[i].material;
+      mat.setTexture("cubemap2", nextCubemap);
+      setMaterialYaw(mat, currYaw, nextYaw);
+    }
 
-    if (!USE_MODEL) {
+    // UI jumps (select / minimap) and no-model mode: blur teleport, no wall-walk.
+    if (transition === "blur" || !USE_MODEL) {
       animationStarted = true;
       runBlurTransition({
         scene,
@@ -120,6 +138,7 @@ export const goToNextPoint = async (viewId, refs, cubemapCache) => {
         projectMeshesRef,
         nextCubemap,
         nextPos,
+        nextYaw,
         nextIndex,
         next,
         setCurrent,
@@ -131,6 +150,7 @@ export const goToNextPoint = async (viewId, refs, cubemapCache) => {
 
     let animProgress = 0;
     animationStarted = true;
+    const itemsWalk = projectMeshesRef.current;
 
     const observer = scene.onBeforeRenderObservable.add(() => {
       animProgress++;
@@ -139,23 +159,24 @@ export const goToNextPoint = async (viewId, refs, cubemapCache) => {
 
       camera.position = Vector3.Lerp(from, to, eased);
 
-      projectMeshesRef.current.forEach((item) => {
-        updateMaterialProjection(item.material, currPos, nextPos, eased);
-      });
+      for (let i = 0; i < itemsWalk.length; i++) {
+        updateMaterialProjection(itemsWalk[i].material, currPos, nextPos, eased);
+      }
 
       if (animProgress >= MODEL_ANIM_FRAMES) {
         scene.onBeforeRenderObservable.remove(observer);
 
-        projectMeshesRef.current.forEach((item) => {
-          item.material.setTexture("cubemap", nextCubemap);
-          item.material.setTexture("cubemap2", nextCubemap);
-          item.material.setFloat("mixFactor", 0.0);
-          setMaterialYaw(item.material, nextYaw, nextYaw);
-          updateMaterialProjection(item.material, nextPos, nextPos, 0.0);
-        });
+        for (let i = 0; i < itemsWalk.length; i++) {
+          const mat = itemsWalk[i].material;
+          mat.setTexture("cubemap", nextCubemap);
+          mat.setTexture("cubemap2", nextCubemap);
+          mat.setFloat("mixFactor", 0.0);
+          setMaterialYaw(mat, nextYaw, nextYaw);
+          updateMaterialProjection(mat, nextPos, nextPos, 0.0);
+        }
 
         setCurrent(nextIndex);
-        settleCubemapCache(cubemapCache, scene, next);
+        settleCubemapCache(cubemapCache, next);
         isAnimatingRef.current = false;
       }
     });
@@ -184,6 +205,7 @@ function runBlurTransition({
   projectMeshesRef,
   nextCubemap,
   nextPos,
+  nextYaw,
   nextIndex,
   next,
   setCurrent,
@@ -205,11 +227,15 @@ function runBlurTransition({
         item.material.setTexture("cubemap", nextCubemap);
         item.material.setTexture("cubemap2", nextCubemap);
         item.material.setFloat("mixFactor", 0.0);
-        setMaterialYaw(item.material, viewYawDegrees(CONFIG.views[nextIndex]));
-        syncNoModelSkybox(item.mesh, item.material, nextPos);
+        setMaterialYaw(item.material, nextYaw, nextYaw);
+        if (USE_MODEL) {
+          updateMaterialProjection(item.material, nextPos, nextPos, 0.0);
+        } else {
+          syncNoModelSkybox(item.mesh, item.material, nextPos);
+        }
       });
       setCurrent(nextIndex);
-      settleCubemapCache(cubemapCache, scene, next);
+      settleCubemapCache(cubemapCache, next);
     }
 
     // 0→1 over first half, 1→0 over second

@@ -6,7 +6,6 @@ import {
   USE_MODEL,
   HIDE_PANORAMS,
   cubemapKey,
-  neighborCubemapKeys,
   worldPos,
 } from "./config";
 import { registerShaders } from "./shaders";
@@ -18,6 +17,7 @@ import {
   updateMaterialProjection,
   viewYawDegrees,
 } from "./useCubemapsAndMaterials";
+import { ensureFloorCubemaps, resolveFloorForView } from "./floorCubemaps";
 import { pickNextViewFromClick } from "./pickNextViewFromClick";
 import { goToNextPoint } from "./goToNextPoint";
 import { attachTouchControls } from "./touchControls";
@@ -25,9 +25,10 @@ import { attachDesktopLookControls } from "./desktopLookControls";
 import { attachZoomControls } from "./zoomControls";
 import { createProjectedCursor } from "./projectedCursor";
 import { createFloorHotspots } from "./floorHotspots";
-import { createNoModelScene } from "./noModelScene";
+import { createNoModelScene, createProjectionSkybox } from "./noModelScene";
 import { isClick } from "./helpers/isClick";
 import { initCamera } from "./initCamera";
+import { resolveStartViewIndex } from "./resolveStartView";
 import { initTourRoomAnalytics, syncRoomFromView } from "../analytics/fvAnalytics";
 
 /** Initial load: first cubemap 0–25%, GLB download 25–100%. Without model / hide panos = skip cubemap bar. */
@@ -60,6 +61,14 @@ function undoBlenderMeterScale(meshes) {
   }
 }
 
+/** After parent scale/pos edits, picks use stale world matrices until the next render. */
+function syncPickMeshTransforms(meshes) {
+  for (const mesh of meshes) {
+    if (!mesh || mesh.isDisposed?.()) continue;
+    mesh.computeWorldMatrix(true);
+  }
+}
+
 function isAlive(scene, aborted) {
   return !aborted && !!scene && !scene.isDisposed;
 }
@@ -80,6 +89,8 @@ export function useBabylonTour() {
   const lastTouchRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [loadingPercent, setLoadingPercent] = useState(0);
+  const [floorLoading, setFloorLoading] = useState(false);
+  const [floorLoadingPercent, setFloorLoadingPercent] = useState(0);
   const [loadError, setLoadError] = useState(null);
   const [bootId, setBootId] = useState(0);
   const [panoramasVisible, setPanoramasVisible] = useState(!HIDE_PANORAMS);
@@ -89,6 +100,10 @@ export function useBabylonTour() {
   );
   const aliveRef = useRef(true);
   const cubemapCacheRef = useRef(null);
+  const loadedFloorIdRef = useRef(null);
+  const floorLoadGenRef = useRef(0);
+  const floorLoadingRef = useRef(false);
+  const runGoToRef = useRef(null);
   const cursorApiRef = useRef(null);
   const hotspotsRef = useRef(null);
   const hotspotHoverRef = useRef(null);
@@ -135,6 +150,101 @@ export function useBabylonTour() {
     }
   };
 
+  /**
+   * Load every panorama on the view's floor. Shows a light loader on first visit
+   * / floor change; drops the previous floor from VRAM.
+   */
+  const ensureFloorLoaded = async (view, { showLoader = true } = {}) => {
+    if (HIDE_PANORAMS || !view) return { floorId: null, changed: false };
+
+    const scene = sceneRef.current;
+    const cache = cubemapCacheRef.current;
+    if (!scene || scene.isDisposed || !cache) {
+      return { floorId: null, changed: false };
+    }
+
+    const floor = resolveFloorForView(view);
+    const willChange = !!floor && loadedFloorIdRef.current !== floor.id;
+    const needsLoader =
+      showLoader && (willChange || loadedFloorIdRef.current == null);
+    const gen = ++floorLoadGenRef.current;
+    const currentView = CONFIG.views[indexRef.current];
+    const displayKey =
+      currentView && currentView.id !== view.id ? cubemapKey(currentView) : null;
+
+    if (needsLoader) {
+      floorLoadingRef.current = true;
+      setFloorLoading(true);
+      setFloorLoadingPercent(0);
+    }
+
+    try {
+      return await ensureFloorCubemaps({
+        scene,
+        cache,
+        view,
+        loadedFloorIdRef,
+        displayKey,
+        checkAlive: () =>
+          aliveRef.current &&
+          floorLoadGenRef.current === gen &&
+          !scene.isDisposed,
+        onProgress: ({ done, total }) => {
+          if (!aliveRef.current || floorLoadGenRef.current !== gen) return;
+          const pct = total > 0 ? Math.round((done / total) * 100) : 100;
+          setFloorLoadingPercent(pct);
+        },
+      });
+    } finally {
+      if (aliveRef.current && floorLoadGenRef.current === gen && needsLoader) {
+        floorLoadingRef.current = false;
+        setFloorLoading(false);
+        setFloorLoadingPercent(100);
+      }
+    }
+  };
+
+  const runGoTo = async (viewId, transition) => {
+    if (isAnimatingRef.current || floorLoadingRef.current) return;
+
+    const next = CONFIG.views.find((v) => v.id === viewId);
+    if (!next || next.locked) return;
+
+    if (!HIDE_PANORAMS) {
+      const cache = cubemapCacheRef.current;
+      const nextKey = cubemapKey(next);
+      const floorReady =
+        !!loadedFloorIdRef.current &&
+        resolveFloorForView(next)?.id === loadedFloorIdRef.current &&
+        !!cache?.peek(nextKey);
+
+      // Same floor + already warm → skip ensureFloor (no await / no loader flash).
+      if (!floorReady) {
+        await ensureFloorLoaded(next, { showLoader: true });
+        if (!aliveRef.current) return;
+      }
+    }
+
+    return goToNextPoint(
+      viewId,
+      {
+        isAnimatingRef,
+        sceneRef,
+        cameraRef,
+        projectMeshesRef,
+        indexRef,
+        setCurrent: (value) => {
+          if (aliveRef.current) setCurrent(value);
+        },
+        hidePanoramsRef,
+        yawDegreesRef,
+      },
+      cubemapCacheRef.current,
+      { transition }
+    );
+  };
+  runGoToRef.current = runGoTo;
+
   useEffect(() => {
     let aborted = false;
     aliveRef.current = true;
@@ -152,15 +262,14 @@ export function useBabylonTour() {
         setLoading(false);
       }
     };
-    const safeSetCurrent = (value) => {
-      if (aliveRef.current) setCurrent(value);
-    };
 
     registerShaders();
 
     cubemapCacheRef.current?.disposeAll();
     const cubemapCache = createCubemapCache();
     cubemapCacheRef.current = cubemapCache;
+    loadedFloorIdRef.current = null;
+    floorLoadGenRef.current += 1;
     if (import.meta.env.DEV) {
       window.__cubemapCache = cubemapCache;
     }
@@ -174,26 +283,15 @@ export function useBabylonTour() {
     if (!aborted) {
       setPanoramasVisible(!HIDE_PANORAMS);
       setAlignMode(false);
-      const y0 = viewYawDegrees(CONFIG.views[0]);
+      const startIdx = resolveStartViewIndex() ?? 0;
+      indexRef.current = startIdx;
+      setCurrent(startIdx);
+      const y0 = viewYawDegrees(CONFIG.views[startIdx]);
       yawDegreesRef.current = y0;
       setYawDegrees(y0);
     }
 
-    const navigate = (viewId) =>
-      goToNextPoint(
-        viewId,
-        {
-          isAnimatingRef,
-          sceneRef,
-          cameraRef,
-          projectMeshesRef,
-          indexRef,
-          setCurrent: safeSetCurrent,
-          hidePanoramsRef,
-          yawDegreesRef,
-        },
-        cubemapCacheRef.current
-      );
+    const navigate = (viewId) => runGoToRef.current?.(viewId, "walk");
 
     async function initBabylon() {
       const canvas = canvasRef.current;
@@ -228,11 +326,6 @@ export function useBabylonTour() {
           if (!checkAlive()) return;
           cubemapCache.pin([firstCubemapKey]);
           safeSetPercent(LOAD_CUBEMAP_DONE);
-          void cubemapCache.warm(
-            scene,
-            neighborCubemapKeys(first),
-            checkAlive
-          );
         } else {
           safeSetPercent(LOAD_CUBEMAP_DONE);
         }
@@ -254,6 +347,8 @@ export function useBabylonTour() {
           return;
         }
 
+        syncPickMeshTransforms(pickMeshesRef.current);
+
         hotspotsRef.current?.dispose();
         hotspotsRef.current = createFloorHotspots(scene, {
           getPickMeshes: () => pickMeshesRef.current,
@@ -261,8 +356,22 @@ export function useBabylonTour() {
         });
         hotspotsRef.current.refresh(indexRef.current);
 
+        // One more place after the first rendered frame — bounding/octree fully settled.
+        scene.onAfterRenderObservable.addOnce(() => {
+          if (!checkAlive() || !hotspotsRef.current) return;
+          syncPickMeshTransforms(pickMeshesRef.current);
+          hotspotsRef.current.refresh(indexRef.current);
+        });
+
         safeSetPercent(100);
         safeSetLoading(false);
+
+        // First cubemap is up — warm the rest of the floor behind a light loader.
+        if (!HIDE_PANORAMS) {
+          void ensureFloorLoaded(CONFIG.views[indexRef.current], {
+            showLoader: true,
+          });
+        }
       };
 
       if (USE_MODEL) {
@@ -328,9 +437,20 @@ export function useBabylonTour() {
                 originalMaterial,
               });
             });
+
+            // Cage gaps / culled glass show clearColor otherwise — fill with same pano.
+            projectMeshesRef.current.push(
+              createProjectionSkybox(scene, cubemap1, projectorPos, {
+                name: "cageHoleSkybox",
+                yawDeg: yawDegreesRef.current,
+                panoOpacity: panoOpacityRef.current,
+              })
+            );
           }
 
-          pickMeshesRef.current = projectMeshesRef.current.map(({ mesh }) => mesh);
+          pickMeshesRef.current = projectMeshesRef.current
+            .filter((item) => !item.holeFill)
+            .map(({ mesh }) => mesh);
           finishSceneReady();
         }, (evt) => {
           if (!checkAlive()) return;
@@ -369,7 +489,7 @@ export function useBabylonTour() {
       let pointerDownPos = null;
 
       scene.onPointerDown = (evt) => {
-        if (isAnimatingRef.current) return;
+        if (isAnimatingRef.current || floorLoadingRef.current) return;
         if (evt.button !== 0 || pickMeshesRef.current.length === 0) return;
 
         pointerDownTime = performance.now();
@@ -377,7 +497,7 @@ export function useBabylonTour() {
       };
 
       scene.onPointerUp = (evt, pickInfo) => {
-        if (isAnimatingRef.current) return;
+        if (isAnimatingRef.current || floorLoadingRef.current) return;
         if (evt.button !== 0 || pickMeshesRef.current.length === 0) return;
         if (isClick(pointerDownTime, pointerDownPos, evt)) {
           const hotspotViewId = hotspotsRef.current?.viewIdFromPick(pickInfo);
@@ -437,28 +557,16 @@ export function useBabylonTour() {
     };
   }, [bootId]);
 
-  const navigateTo = (viewId) =>
-    goToNextPoint(
-      viewId,
-      {
-        isAnimatingRef,
-        sceneRef,
-        cameraRef,
-        projectMeshesRef,
-        indexRef,
-        setCurrent: (value) => {
-          if (aliveRef.current) setCurrent(value);
-        },
-        hidePanoramsRef,
-        yawDegreesRef,
-      },
-      cubemapCacheRef.current
-    );
+  // RoomSelector / Minimap — blur teleport (no walk through walls).
+  const navigateTo = (viewId) => runGoToRef.current?.(viewId, "blur");
 
   const retry = () => {
     setLoadError(null);
     setLoading(true);
     setLoadingPercent(0);
+    floorLoadingRef.current = false;
+    setFloorLoading(false);
+    setFloorLoadingPercent(0);
     setBootId((id) => id + 1);
   };
 
@@ -531,8 +639,12 @@ export function useBabylonTour() {
         debugLightRef.current.setEnabled(true);
       }
 
-      items.forEach(({ mesh, originalMaterial }) => {
-        mesh.material = originalMaterial;
+      items.forEach((item) => {
+        if (item.holeFill) {
+          item.mesh.setEnabled(false);
+          return;
+        }
+        item.mesh.material = item.originalMaterial;
       });
       return;
     }
@@ -548,7 +660,8 @@ export function useBabylonTour() {
       if (!aliveRef.current || scene.isDisposed) return;
 
       cubemapCache.pin([key]);
-      void cubemapCache.warm(scene, neighborCubemapKeys(view), () => aliveRef.current && !scene.isDisposed);
+      await ensureFloorLoaded(view, { showLoader: true });
+      if (!aliveRef.current || scene.isDisposed) return;
 
       const p = worldPos(view.position);
       const projectorPos = new Vector3(p.x, p.y, p.z);
@@ -581,6 +694,10 @@ export function useBabylonTour() {
           updateMaterialProjection(mat, projectorPos, projectorPos, 0);
         }
         item.mesh.material = mat;
+        if (item.holeFill) {
+          item.mesh.position.copyFrom(projectorPos);
+          item.mesh.setEnabled(true);
+        }
       }
 
       panoOpacityRef.current = opacity;
@@ -603,6 +720,8 @@ export function useBabylonTour() {
     currentIndex,
     loading,
     loadingPercent,
+    floorLoading,
+    floorLoadingPercent,
     loadError,
     panoramasVisible,
     alignMode,

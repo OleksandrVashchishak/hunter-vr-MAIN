@@ -7,6 +7,7 @@ import Minimap from "./components/Minimap";
 import TourToolbar from "./components/TourToolbar";
 import AlignControls from "./components/AlignControls";
 import Tutor from "./components/Tutor";
+import FloorLoader from "./components/FloorLoader";
 import LoadError from "./components/LoadError";
 
 const BabylonViewer = () => {
@@ -17,6 +18,8 @@ const BabylonViewer = () => {
     currentIndex,
     loading,
     loadingPercent,
+    floorLoading,
+    floorLoadingPercent,
     loadError,
     panoramasVisible,
     alignMode,
@@ -40,7 +43,7 @@ const BabylonViewer = () => {
   }, [loading, loadingPercent]);
 
   const viewId = CONFIG.views[currentIndex]?.id;
-  const uiDisabled = loading || !!loadError;
+  const uiDisabled = loading || floorLoading || !!loadError;
 
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative" }}>
@@ -50,6 +53,7 @@ const BabylonViewer = () => {
       ) : (
         <Tutor loading={loading} loadingPercent={loadingPercent} />
       )}
+      <FloorLoader active={floorLoading && !loading} percent={floorLoadingPercent} />
       <RoomSelector currentIndex={currentIndex} onSelectRoom={navigateTo} />
       <TourToolbar
         engineRef={engineRef}

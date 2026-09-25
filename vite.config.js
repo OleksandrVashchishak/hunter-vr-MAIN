@@ -13,7 +13,7 @@ function copyTourAssets() {
   return {
     name: 'copy-tour-assets',
     closeBundle() {
-      const outDir = resolve(rootDir, 'dist')
+      const outDir = resolve(rootDir, this.environment?.config?.build?.outDir || 'dist')
 
       for (const item of assets) {
         const src = resolve(rootDir, item)

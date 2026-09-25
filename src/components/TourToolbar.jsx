@@ -3,7 +3,7 @@ import styles from "./TourToolbar.module.scss";
 import ScreenshotButton from "./ScreenshotButton";
 import PanoramaToggle from "./PanoramaToggle";
 import AlignToggle from "./AlignToggle";
-import { USE_MODEL } from "../babylon/config";
+import { DEV_MODE, USE_MODEL } from "../babylon/config";
 
 const TourToolbar = ({
   engineRef,
@@ -16,7 +16,7 @@ const TourToolbar = ({
   disabled,
 }) => (
   <div className={styles.root}>
-    {USE_MODEL && (
+    {DEV_MODE && USE_MODEL && (
       <>
         <AlignToggle
           active={alignMode}

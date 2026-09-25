@@ -111,17 +111,59 @@ async function main() {
   }
   assert(rejected, "get after disposeAll rejects");
 
-  // 5) Real tour graph: stair-foyer-1 has 5 neighbors → current+neighbors needs eviction
-  const { CONFIG, neighborCubemapKeys, cubemapKey } = await import(
-    "../src/babylon/config.js"
-  );
-  const foyer = CONFIG.views.find((v) => v.id === "stair-foyer-1");
-  const keys = neighborCubemapKeys(foyer);
-  assert(keys.length === 5, `stair-foyer-1 has 5 neighbor keys (got ${keys.length})`);
-  assert(
-    1 + keys.length > 5,
-    "documents that MAX_CACHED=5 cannot keep current+all neighbors for foyer"
-  );
+  // 5) retainOnly drops unpinned extras
+  const disposals5 = [];
+  const cache5 = createCubemapCache({
+    maxSize: 32,
+    async loadTexture(_scene, name) {
+      const tex = fakeTexture(name);
+      const orig = tex.dispose.bind(tex);
+      tex.dispose = () => {
+        disposals5.push(name);
+        orig();
+      };
+      return tex;
+    },
+  });
+  for (const k of ["keep-a", "keep-b", "drop-me"]) {
+    await cache5.get(scene, k);
+  }
+  cache5.pin(["keep-a", "keep-b"]);
+  cache5.retainOnly(["keep-a", "keep-b"]);
+  assert(cache5.size() === 2, `retainOnly size=2 (got ${cache5.size()})`);
+  assert(disposals5.includes("drop-me"), "retainOnly disposed drop-me");
+  assert(cache5.peek("keep-a") && cache5.peek("keep-b"), "retainOnly kept pinned keys");
+
+  // 6) warm progress callback
+  const progress = [];
+  const cache6 = createCubemapCache({
+    maxSize: 32,
+    async loadTexture(_scene, name) {
+      await delay(2);
+      return fakeTexture(name);
+    },
+  });
+  await cache6.warm(scene, ["p1", "p2", "p3"], null, ({ done, total }) => {
+    progress.push([done, total]);
+  });
+  assert(progress.length === 3, `warm reported 3 steps (got ${progress.length})`);
+  assert(progress.at(-1)?.[0] === 3 && progress.at(-1)?.[1] === 3, "warm ends at 3/3");
+
+  // 7) Floor helper: Floor I includes wellness orphans
+  const {
+    getCubemapKeysOnFloor,
+    resolveFloorForView,
+  } = await import("../src/babylon/floorCubemaps.js");
+  const { FLOORS } = await import("../src/config/floorsConfig.js");
+  const { CONFIG } = await import("../src/babylon/config.js");
+
+  const floorI = FLOORS.find((f) => f.id === "floor-i");
+  const keysI = getCubemapKeysOnFloor(floorI);
+  assert(keysI.includes("wellness-1"), "floor-i includes wellness-1");
+  assert(keysI.length >= 24, `floor-i has >=24 keys (got ${keysI.length})`);
+
+  const wellness = CONFIG.views.find((v) => v.id === "wellness-1");
+  assert(resolveFloorForView(wellness)?.id === "floor-i", "wellness resolves to floor-i");
 
   if (failed) {
     console.error(`\n${failed} failed`);

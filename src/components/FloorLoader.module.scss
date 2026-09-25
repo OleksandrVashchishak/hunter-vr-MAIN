@@ -1,0 +1,82 @@
+$bg-dim: rgba(20, 20, 22, 0.28);
+$bg-pill: #2f2f2f66;
+$mobile: 900px;
+
+.root {
+  position: absolute;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 16px 28px;
+  box-sizing: border-box;
+  background: $bg-dim;
+  pointer-events: all;
+}
+
+.pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: $bg-pill;
+  color: #fff;
+  font-family: "ABC Areal", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.glass {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  &::before,
+  &::after {
+    border-radius: inherit;
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  &::before {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  animation: floorSpin 0.7s linear infinite;
+}
+
+.text {
+  letter-spacing: 0.01em;
+}
+
+@keyframes floorSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: $mobile) {
+  .root {
+    padding-bottom: 22px;
+  }
+
+  .pill {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+}

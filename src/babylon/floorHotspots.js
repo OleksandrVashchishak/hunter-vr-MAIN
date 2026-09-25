@@ -161,11 +161,20 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     const pickMeshes = getPickMeshes?.() || [];
     const hit = scene.pickWithRay(ray, (m) => pickMeshes.includes(m));
 
+    // Miss → keep near cam height (not y=0.5). Wrong depth looks like bad XZ when looking down.
     const y = hit?.hit && hit.pickedPoint
       ? hit.pickedPoint.y + FLOOR_OFFSET
-      : 0.5;
+      : p.y - 40;
 
     root.position.set(p.x, y, p.z);
+  }
+
+  function syncPickMeshes() {
+    const pickMeshes = getPickMeshes?.() || [];
+    for (const mesh of pickMeshes) {
+      if (!mesh || mesh.isDisposed?.()) continue;
+      mesh.computeWorldMatrix(true);
+    }
   }
 
   function ensureHotspot(view) {
@@ -236,11 +245,14 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
             CONFIG.views.map((v) => v.id).filter((id) => id !== currentActor)
           );
 
-    CONFIG.views.forEach((view) => {
+    // Place once on create — re-raycasting every room change stalls the frame
+    // (full GLB pick mesh list × every view).
+    for (const view of CONFIG.views) {
+      const isNew = !hotspotsByActor.has(view.id);
       const { root } = ensureHotspot(view);
-      placeOnFloor(root, view);
+      if (isNew) placeOnFloor(root, view);
       root.setEnabled(!captureHidden && visibleIds.has(view.id));
-    });
+    }
 
     updateOcclusion();
 

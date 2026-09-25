@@ -48,10 +48,11 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
   });
   const [floorId, setFloorId] = useState("floor-ii");
   const [trackedViewId, setTrackedViewId] = useState(null);
-  const markersRef = useRef(null);
   const radarRef = useRef(null);
 
-  const currentViewId = CONFIG.views[currentIndex]?.id;
+  const currentView = CONFIG.views[currentIndex];
+  const currentViewId = currentView?.id;
+  const currentRoomName = currentView?.room;
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_MQ);
@@ -85,30 +86,14 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
   // Sync tab when panorama room changes (React "adjust state during render")
   if (currentViewId !== trackedViewId) {
     setTrackedViewId(currentViewId);
-    const match = findFloorForViewId(currentViewId);
+    const match = findFloorForViewId(currentViewId, currentRoomName);
     if (match) setFloorId(match.id);
   }
 
   const floor = FLOORS.find((item) => item.id === floorId) || FLOORS[1];
   const assets = FLOOR_ASSETS[floor.id];
-  const active = getActiveHotspot(floor, currentViewId);
-
-  useEffect(() => {
-    const root = markersRef.current;
-    if (!root) return;
-
-    const onClick = (event) => {
-      const hotspot = event.target.closest(".hotspot");
-      if (!hotspot) return;
-
-      const index = Number(hotspot.getAttribute("data-index"));
-      const room = getMinimapRooms(floor)[index];
-      if (room?.viewId) onSelectRoom?.(room.viewId);
-    };
-
-    root.addEventListener("click", onClick);
-    return () => root.removeEventListener("click", onClick);
-  }, [floor, onSelectRoom, open]);
+  const rooms = getMinimapRooms(floor);
+  const active = getActiveHotspot(floor, currentViewId, currentRoomName);
 
   // Rotate radar with camera yaw (no React re-renders)
   useEffect(() => {
@@ -192,10 +177,29 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
             )}
 
             <div
-              ref={markersRef}
               className={styles.markersSvg}
               dangerouslySetInnerHTML={{ __html: assets.svg }}
+              aria-hidden
             />
+
+            {rooms.map((room, index) => {
+              const point = floor.hotspots[index];
+              if (!point || !room.viewId) return null;
+              const [x, y] = point;
+              return (
+                <button
+                  key={room.id}
+                  type="button"
+                  className={styles.hotspot}
+                  style={{
+                    left: `${(x / floor.viewBox.w) * 100}%`,
+                    top: `${(y / floor.viewBox.h) * 100}%`,
+                  }}
+                  aria-label={room.label}
+                  onClick={() => onSelectRoom?.(room.viewId)}
+                />
+              );
+            })}
           </div>
         </div>
       )}

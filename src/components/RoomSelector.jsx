@@ -4,6 +4,7 @@ import { postToParent } from "../babylon/parentBridge";
 import {
   FLOORS,
   findFloorForViewId,
+  findRoomOnFloor,
   getDefaultRoomViewId,
   getListRooms,
 } from "../config/floorsConfig";
@@ -31,11 +32,15 @@ const RoomSelector = ({ currentIndex, onSelectRoom }) => {
     () => typeof window !== "undefined" && window.matchMedia(MOBILE_MQ).matches,
   );
 
-  const currentViewId = CONFIG.views[currentIndex]?.id;
+  const currentView = CONFIG.views[currentIndex];
+  const currentViewId = currentView?.id;
+  const currentRoomName = currentView?.room;
   const activeFloor =
     FLOORS.find((floor) => floor.id === selectedFloorId) || FLOORS[0] || null;
   const listRooms = activeFloor ? getListRooms(activeFloor) : [];
-  const activeRoomLabel = listRooms.find((room) => room.viewId === currentViewId)?.label;
+  // Prefer catalogue label; fall back to view.room so secondary panoramas still show a name.
+  const activeRoomLabel =
+    findRoomOnFloor(activeFloor, currentViewId, currentRoomName)?.label || currentRoomName;
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_MQ);
@@ -46,17 +51,17 @@ const RoomSelector = ({ currentIndex, onSelectRoom }) => {
   }, []);
 
   useEffect(() => {
-    if (!currentViewId) return;
+    if (!currentViewId && !currentRoomName) return;
 
-    // Keep the chosen floor when the same viewId exists on several floors.
+    // Keep the chosen floor when the same view / room exists on several floors.
     setSelectedFloorId((prevId) => {
       const prevFloor = FLOORS.find((floor) => floor.id === prevId);
-      if (prevFloor && getListRooms(prevFloor).some((room) => room.viewId === currentViewId)) {
+      if (prevFloor && findRoomOnFloor(prevFloor, currentViewId, currentRoomName)) {
         return prevId;
       }
-      return findFloorForViewId(currentViewId)?.id ?? prevId;
+      return findFloorForViewId(currentViewId, currentRoomName)?.id ?? prevId;
     });
-  }, [currentViewId]);
+  }, [currentViewId, currentRoomName]);
 
   const togglePanel = (panel) => {
     setOpenPanel((current) => (current === panel ? null : panel));
