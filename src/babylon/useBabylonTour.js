@@ -8,6 +8,7 @@ import {
   cubemapKey,
   worldPos,
 } from "./config";
+import { createTourEngine, isWebGLInitError } from "./createTourEngine";
 import { registerShaders } from "./shaders";
 import {
   createCubemapCache,
@@ -297,7 +298,18 @@ export function useBabylonTour() {
       const canvas = canvasRef.current;
       if (!canvas || aborted) return;
 
-      const engine = new Engine(canvas, true);
+      let engine;
+      try {
+        engine = createTourEngine(canvas);
+      } catch (error) {
+        console.error("[initBabylon]", error);
+        safeSetError(
+          isWebGLInitError(error)
+            ? "Couldn't start 3D graphics in this browser tab. Try Chrome/Edge, close other heavy tabs, or open the tour in a new window."
+            : "Couldn't start the 3D tour. Please retry."
+        );
+        return;
+      }
 
       engine.setHardwareScalingLevel(1);
       engine.setTextureFormatToUse(Engine.TEXTUREFORMAT_RGBA);
@@ -522,7 +534,10 @@ export function useBabylonTour() {
       removeResizeRef.current = () => window.removeEventListener("resize", handleResize);
     }
 
-    initBabylon();
+    initBabylon().catch((error) => {
+      console.error("[initBabylon]", error);
+      safeSetError("Couldn't start the 3D tour. Please retry.");
+    });
 
     const disposeRoomAnalytics = initTourRoomAnalytics(() => CONFIG.views[indexRef.current]);
 

@@ -105,7 +105,8 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
       const el = radarRef.current;
       const camera = cameraRef?.current;
       if (el && camera?.rotation) {
-        const deg = (-camera.rotation.y * 180) / Math.PI;
+        // +180: map north vs Babylon yaw; flipped sign = horizontal mirror
+        const deg = (camera.rotation.y * 180) / Math.PI + 180;
         el.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
       }
       rafId = requestAnimationFrame(tick);
