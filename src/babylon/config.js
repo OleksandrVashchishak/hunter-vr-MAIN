@@ -97,6 +97,7 @@ export const CONFIG = {
       look: { x: 700.073, y: 905.829, z: 1488.588 },
       views: ["primary-bedroom-1", "primary-bedroom-2", "primary-hall-2"],
       room: "Closet",
+      yaw: 90,
     },
     {
       id: "primary-bathroom-1",
@@ -141,6 +142,7 @@ export const CONFIG = {
       look: { x: -1404.327, y: 890.991, z: 1017.223 },
       views: ["bedroom-4-2", "bathroom-4", "primary-hall-3"],
       room: "Bedroom 4",
+      yaw: -91,
     },
     {
       id: "bedroom-4-2",
@@ -148,6 +150,7 @@ export const CONFIG = {
       look: { x: -1478.81, y: 890.991, z: 1195.55 },
       views: ["bedroom-4-1", "bathroom-4", "primary-hall-3"],
       room: "Bedroom 4",
+      yaw: -91,
     },
     {
       id: "bathroom-4",
@@ -162,6 +165,7 @@ export const CONFIG = {
       look: { x: -359.542, y: 890.991, z: 1576.75 },
       views: ["office-2", "office-bathroom-2", "primary-hall-1"],
       room: "Office",
+      yaw: -91,
     },
     {
       id: "office-2",
@@ -169,6 +173,7 @@ export const CONFIG = {
       look: { x: -111.088, y: 890.991, z: 1752.144 },
       views: ["office-1", "office-bathroom-1", "primary-hall-1"],
       room: "Office",
+      yaw: 179,
     },
     {
       id: "office-bathroom-1",
@@ -176,6 +181,7 @@ export const CONFIG = {
       look: { x: -290.145, y: 890.991, z: 1501.488 },
       views: ["office-bathroom-2", "office-2", "primary-hall-3"],
       room: "Office Bathroom",
+      yaw: -91,
     },
     {
       id: "office-bathroom-2",
@@ -183,6 +189,7 @@ export const CONFIG = {
       look: { x: -239.285, y: 890.991, z: 1402.23 },
       views: ["office-bathroom-1", "office-1"],
       room: "Office Bathroom",
+      yaw: -91,
     },
     {
       id: "living",
