@@ -476,7 +476,7 @@ export const CONFIG = {
       position: { x: -1759.029, y: 188.505, z: 1488.221 },
       look: { x: -1423.943, y: 188.505, z: 1296.168 },
       views: ["bedroom-1-2", "game-room-1"],
-      room: "Bedroom 1",
+      room: "Bedroom 1", 
     },
     {
       id: "bedroom-1-2",
