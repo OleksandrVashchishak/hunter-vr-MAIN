@@ -1,5 +1,5 @@
 import { Vector3 } from "@babylonjs/core";
-import { CONFIG, USE_MODEL, cubemapKey, worldPos } from "./config";
+import { CONFIG, USE_MODEL, cubemapKey, neighborCubemapKeys, worldPos } from "./config";
 import { easeInOutCubic } from "./easing";
 import {
   setMaterialYaw,
@@ -32,7 +32,17 @@ function toVec3(p) {
   return new Vector3(w.x, w.y, w.z);
 }
 
-export const goToNextPoint = async (viewId, refs, loadCubemap) => {
+function settleCubemapCache(cache, scene, nextView) {
+  if (!cache || !nextView) return;
+  const nextKey = cubemapKey(nextView);
+  cache.pin([nextKey]);
+  cache.touch(nextKey);
+  cache.evictIfNeeded();
+  const alive = () => !!scene && !scene.isDisposed;
+  void cache.warm(scene, neighborCubemapKeys(nextView), alive);
+}
+
+export const goToNextPoint = async (viewId, refs, cubemapCache) => {
   const {
     isAnimatingRef,
     sceneRef,
@@ -60,6 +70,9 @@ export const goToNextPoint = async (viewId, refs, loadCubemap) => {
     }
 
     const next = CONFIG.views[nextIndex];
+    if (next.locked) {
+      return;
+    }
     const from = camera.position.clone();
     const to = toVec3(next.position);
     const currPos = toVec3(curr.position);
@@ -82,7 +95,15 @@ export const goToNextPoint = async (viewId, refs, loadCubemap) => {
       return;
     }
 
-    const nextCubemap = await loadCubemap(scene, cubemapKey(next));
+    const currKey = cubemapKey(curr);
+    const nextKey = cubemapKey(next);
+    cubemapCache?.pin([currKey, nextKey]);
+
+    if (!cubemapCache) {
+      throw new Error("Cubemap cache is not ready");
+    }
+
+    const nextCubemap = await cubemapCache.get(scene, nextKey);
     const currYaw = yawDegreesRef?.current ?? viewYawDegrees(curr);
     const nextYaw = viewYawDegrees(next);
 
@@ -100,8 +121,10 @@ export const goToNextPoint = async (viewId, refs, loadCubemap) => {
         nextCubemap,
         nextPos,
         nextIndex,
+        next,
         setCurrent,
         isAnimatingRef,
+        cubemapCache,
       });
       return;
     }
@@ -132,12 +155,18 @@ export const goToNextPoint = async (viewId, refs, loadCubemap) => {
         });
 
         setCurrent(nextIndex);
+        settleCubemapCache(cubemapCache, scene, next);
         isAnimatingRef.current = false;
       }
     });
   } catch (error) {
     console.error("[goToNextPoint]", error);
     clearCanvasBlur(sceneRef.current);
+    const curr = CONFIG.views[indexRef.current];
+    if (curr && cubemapCache) {
+      cubemapCache.pin([cubemapKey(curr)]);
+      cubemapCache.evictIfNeeded();
+    }
   } finally {
     if (!animationStarted) {
       isAnimatingRef.current = false;
@@ -156,8 +185,10 @@ function runBlurTransition({
   nextCubemap,
   nextPos,
   nextIndex,
+  next,
   setCurrent,
   isAnimatingRef,
+  cubemapCache,
 }) {
   let animProgress = 0;
   let swapped = false;
@@ -178,6 +209,7 @@ function runBlurTransition({
         syncNoModelSkybox(item.mesh, item.material, nextPos);
       });
       setCurrent(nextIndex);
+      settleCubemapCache(cubemapCache, scene, next);
     }
 
     // 0→1 over first half, 1→0 over second

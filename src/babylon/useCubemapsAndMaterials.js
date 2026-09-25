@@ -40,23 +40,83 @@ function bindBaseFromOriginal(shaderMaterial, originalMaterial, scene) {
   shaderMaterial.setColor3("baseColorFactor", factor);
 }
 
-export function createCubemapLoader(preloadedCubemapsRef) {
+/** Soft cap on resident cubemaps in VRAM (current + neighbors fit in typical degree ≤4). */
+export const CUBEMAP_CACHE_MAX = 5;
+
+/**
+ * On-demand cubemap loader with LRU eviction.
+ * Pin keys that are bound to materials (current, and next during a transition)
+ * so they are never disposed mid-frame.
+ *
+ * @param {{ maxSize?: number, loadTexture?: (scene: unknown, name: string) => Promise<import('@babylonjs/core').CubeTexture> }} [options]
+ */
+export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } = {}) {
+  const entries = new Map();
   const pendingLoads = Object.create(null);
+  let pinned = new Set();
+  let disposed = false;
+  let warmGeneration = 0;
 
-  return function loadCubemapAsync(scene, name) {
-    if (preloadedCubemapsRef.current[name]) {
-      return Promise.resolve(preloadedCubemapsRef.current[name]);
+  function touch(key) {
+    const entry = entries.get(key);
+    if (entry) entry.lastUsed = performance.now();
+  }
+
+  /** Mark as oldest so a cancelled warm's late completion loses to real residents. */
+  function demote(key) {
+    const entry = entries.get(key);
+    if (entry) entry.lastUsed = 0;
+  }
+
+  function pin(keys) {
+    pinned = new Set((keys || []).filter(Boolean));
+  }
+
+  function evictIfNeeded() {
+    while (entries.size > maxSize) {
+      let victimKey = null;
+      let victimTime = Infinity;
+      for (const [key, entry] of entries) {
+        if (pinned.has(key)) continue;
+        if (entry.lastUsed < victimTime) {
+          victimTime = entry.lastUsed;
+          victimKey = key;
+        }
+      }
+      if (!victimKey) break;
+
+      const entry = entries.get(victimKey);
+      entries.delete(victimKey);
+      try {
+        entry.texture.dispose();
+      } catch {
+        /* ignore */
+      }
     }
+  }
 
-    if (pendingLoads[name]) {
-      return pendingLoads[name];
-    }
+  function peek(name) {
+    return entries.get(name)?.texture ?? null;
+  }
 
-    // Mobile-optimized set not shipped for this tour yet — use desktop cubemaps.
+  function size() {
+    return entries.size;
+  }
+
+  function keys() {
+    return [...entries.keys()];
+  }
+
+  function store(name, cubemap) {
+    entries.set(name, { texture: cubemap, lastUsed: performance.now() });
+    evictIfNeeded();
+  }
+
+  function loadWithBabylon(scene, name) {
     const imgPath = "panorams";
     const root = import.meta.env.BASE_URL;
 
-    const promise = new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const cubemap = new CubeTexture(
         `${root}${imgPath}/${name}`,
         scene,
@@ -64,17 +124,25 @@ export function createCubemapLoader(preloadedCubemapsRef) {
         false,
         null,
         () => {
+          if (disposed) {
+            try {
+              cubemap.dispose();
+            } catch {
+              /* ignore */
+            }
+            reject(new Error("Cubemap cache is disposed"));
+            return;
+          }
+
           cubemap.generateMipMaps = true;
           cubemap.gammaSpace = true;
           cubemap.anisotropicFilteringLevel = 16;
           cubemap.updateSamplingMode(Texture.ANISOTROPIC_SAMPLINGMODE);
 
-          preloadedCubemapsRef.current[name] = cubemap;
-          delete pendingLoads[name];
+          store(name, cubemap);
           resolve(cubemap);
         },
         (message, exception) => {
-          delete pendingLoads[name];
           try {
             cubemap.dispose();
           } catch {
@@ -88,10 +156,95 @@ export function createCubemapLoader(preloadedCubemapsRef) {
         }
       );
     });
+  }
+
+  function get(scene, name) {
+    if (disposed) {
+      return Promise.reject(new Error("Cubemap cache is disposed"));
+    }
+
+    if (entries.has(name)) {
+      touch(name);
+      return Promise.resolve(entries.get(name).texture);
+    }
+
+    if (pendingLoads[name]) {
+      return pendingLoads[name];
+    }
+
+    const loader = loadTexture
+      ? Promise.resolve(loadTexture(scene, name)).then((cubemap) => {
+          if (disposed) {
+            try {
+              cubemap.dispose?.();
+            } catch {
+              /* ignore */
+            }
+            throw new Error("Cubemap cache is disposed");
+          }
+          store(name, cubemap);
+          return cubemap;
+        })
+      : loadWithBabylon(scene, name);
+
+    const promise = loader.finally(() => {
+      delete pendingLoads[name];
+    });
 
     pendingLoads[name] = promise;
     return promise;
-  };
+  }
+
+  /**
+   * Background-load keys (e.g. all neighbors). Does not pin.
+   * A newer warm() call cancels an in-flight warm loop.
+   * Late completions from a cancelled warm are demoted so they lose LRU races.
+   */
+  async function warm(scene, keysToWarm, checkAlive) {
+    if (disposed || !scene || scene.isDisposed) return;
+    const gen = ++warmGeneration;
+    for (const key of keysToWarm || []) {
+      if (gen !== warmGeneration) return;
+      if (checkAlive && !checkAlive()) return;
+      if (!key) continue;
+      if (entries.has(key)) {
+        touch(key);
+        continue;
+      }
+      try {
+        await get(scene, key);
+      } catch (error) {
+        if (disposed || gen !== warmGeneration) return;
+        if (checkAlive && !checkAlive()) return;
+        console.error("[warmCubemap]", key, error);
+        continue;
+      }
+      if (gen !== warmGeneration) {
+        demote(key);
+        evictIfNeeded();
+        return;
+      }
+    }
+  }
+
+  function disposeAll() {
+    disposed = true;
+    warmGeneration += 1;
+    for (const key of Object.keys(pendingLoads)) {
+      delete pendingLoads[key];
+    }
+    for (const entry of entries.values()) {
+      try {
+        entry.texture.dispose();
+      } catch {
+        /* ignore */
+      }
+    }
+    entries.clear();
+    pinned = new Set();
+  }
+
+  return { get, peek, pin, touch, warm, evictIfNeeded, disposeAll, size, keys };
 }
 
 export function createProjectionMaterial(

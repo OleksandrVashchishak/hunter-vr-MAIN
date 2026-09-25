@@ -13,7 +13,7 @@ export const pickNextViewFromClick = (pickInfo, camera, currentIndex) => {
 
   neighbors.forEach((neighborId) => {
     const neighbor = CONFIG.views.find((v) => v.id === neighborId);
-    if (!neighbor) return;
+    if (!neighbor || neighbor.locked) return;
 
     const np = worldPos(neighbor.position);
     const neighborDir = new Vector3(

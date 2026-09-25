@@ -10,7 +10,7 @@ import {
   Color3,
   Material,
 } from "@babylonjs/core";
-import { CONFIG, SHOW_NEAR_POINTS, HIDE_POINTS, worldPos } from "./config";
+import { CONFIG, SHOW_NEAR_POINTS, HIDE_POINTS, HOTSPOT_OCCLUSION, worldPos } from "./config";
 
 const RING_RADIUS = 20;
 const HIT_DIAMETER = RING_RADIUS * 2.4;
@@ -23,10 +23,12 @@ const WAVE_SCALE_TO = 1.85;
 const WAVE_ALPHA = 0.5;
 const IDLE_ALPHA = 0.55;
 const HOVER_ALPHA = 0.75;
+const LOCKED_ALPHA = 0.35;
 const HOVER_LERP = 0.14;
 const LOS_HEIGHT = 4;
 const LOS_MARGIN = 2;
 const OCCLUSION_EVERY_N_FRAMES = 2;
+const LOCKED_COLOR = new Color3(0.55, 0.55, 0.55);
 
 export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
   const hotspotsByActor = new Map();
@@ -92,6 +94,13 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
       return;
     }
 
+    if (!HOTSPOT_OCCLUSION) {
+      hotspotsByActor.forEach(({ root, viewId }) => {
+        root.setEnabled(visibleIds.has(viewId));
+      });
+      return;
+    }
+
     const camera = scene.activeCamera;
     if (!camera) return;
 
@@ -120,7 +129,7 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
 
   const pulseObserver = scene.onBeforeRenderObservable.add(() => {
     frame++;
-    if (frame % OCCLUSION_EVERY_N_FRAMES === 0) {
+    if (HOTSPOT_OCCLUSION && frame % OCCLUSION_EVERY_N_FRAMES === 0) {
       updateOcclusion();
     }
 
@@ -129,8 +138,13 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     const scale = WAVE_SCALE_FROM + (WAVE_SCALE_TO - WAVE_SCALE_FROM) * eased;
     waveMat.alpha = WAVE_ALPHA * (1 - t);
 
-    hotspotsByActor.forEach(({ root, wave, buttonMat, viewId }) => {
+    hotspotsByActor.forEach(({ root, wave, buttonMat, viewId, locked }) => {
       if (!root.isEnabled()) return;
+      if (locked) {
+        wave.setEnabled(false);
+        buttonMat.alpha = LOCKED_ALPHA;
+        return;
+      }
       wave.scaling.setAll(scale);
 
       const targetAlpha = viewId === hoveredActor ? HOVER_ALPHA : IDLE_ALPHA;
@@ -158,11 +172,16 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     let entry = hotspotsByActor.get(view.id);
     if (entry) return entry;
 
+    const locked = !!view.locked;
     const root = new TransformNode(`hotspot_root_${view.id}`, scene);
     root.setEnabled(false);
 
     const buttonMat = makeUnlitAlphaMat(scene, `hotspotBtnMat_${view.id}`, buttonTexture);
-    buttonMat.alpha = IDLE_ALPHA;
+    buttonMat.alpha = locked ? LOCKED_ALPHA : IDLE_ALPHA;
+    if (locked) {
+      buttonMat.emissiveColor = LOCKED_COLOR;
+      buttonMat.diffuseColor = LOCKED_COLOR;
+    }
 
     const button = MeshBuilder.CreateDisc(
       `hotspot_btn_${view.id}`,
@@ -186,6 +205,7 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     wave.material = waveMat;
     wave.isPickable = false;
     wave.renderingGroupId = 1;
+    wave.setEnabled(!locked);
 
     const hitMesh = MeshBuilder.CreateCylinder(
       `hotspot_hit_${view.id}`,
@@ -195,10 +215,10 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef }) {
     hitMesh.parent = root;
     hitMesh.position.y = HIT_HEIGHT * 0.35;
     hitMesh.isVisible = false;
-    hitMesh.isPickable = true;
-    hitMesh.metadata = { hotspotViewId: view.id };
+    hitMesh.isPickable = !locked;
+    hitMesh.metadata = { hotspotViewId: locked ? null : view.id, locked };
 
-    entry = { root, button, wave, hitMesh, buttonMat, viewId: view.id };
+    entry = { root, button, wave, hitMesh, buttonMat, viewId: view.id, locked };
     hotspotsByActor.set(view.id, entry);
     return entry;
   }

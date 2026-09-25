@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Engine, Scene, Color4, Vector3, SceneLoader, HemisphericLight } from "@babylonjs/core";
 import "@babylonjs/loaders";
-import { CONFIG, USE_MODEL, HIDE_PANORAMS, cubemapKey, worldPos } from "./config";
+import {
+  CONFIG,
+  USE_MODEL,
+  HIDE_PANORAMS,
+  cubemapKey,
+  neighborCubemapKeys,
+  worldPos,
+} from "./config";
 import { registerShaders } from "./shaders";
 import {
-  createCubemapLoader,
+  createCubemapCache,
   createProjectionMaterial,
   setMaterialPanoOpacity,
   setMaterialYaw,
@@ -57,23 +64,6 @@ function isAlive(scene, aborted) {
   return !aborted && !!scene && !scene.isDisposed;
 }
 
-async function preloadCubemapsSequential(scene, firstKey, loadCubemapAsync, checkAlive) {
-  for (const view of CONFIG.views) {
-    if (!checkAlive()) return;
-    const key = cubemapKey(view);
-    if (key === firstKey) continue;
-
-    try {
-      await loadCubemapAsync(scene, key);
-    } catch (error) {
-      if (!checkAlive()) return;
-      console.error("[preloadCubemap]", key, error);
-    }
-
-    await new Promise((r) => setTimeout(r, 200));
-  }
-}
-
 /**
  * Owns Babylon engine/scene lifecycle. UI stays in App.
  */
@@ -86,7 +76,6 @@ export function useBabylonTour() {
   const pickMeshesRef = useRef([]);
   const indexRef = useRef(0);
   const [currentIndex, setCurrent] = useState(0);
-  const preloadedCubemapsRef = useRef({});
   const isAnimatingRef = useRef(false);
   const lastTouchRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -99,7 +88,7 @@ export function useBabylonTour() {
     viewYawDegrees(CONFIG.views[0])
   );
   const aliveRef = useRef(true);
-  const loadCubemapRef = useRef(null);
+  const cubemapCacheRef = useRef(null);
   const cursorApiRef = useRef(null);
   const hotspotsRef = useRef(null);
   const hotspotHoverRef = useRef(null);
@@ -169,7 +158,12 @@ export function useBabylonTour() {
 
     registerShaders();
 
-    preloadedCubemapsRef.current = {};
+    cubemapCacheRef.current?.disposeAll();
+    const cubemapCache = createCubemapCache();
+    cubemapCacheRef.current = cubemapCache;
+    if (import.meta.env.DEV) {
+      window.__cubemapCache = cubemapCache;
+    }
     projectMeshesRef.current = [];
     pickMeshesRef.current = [];
     isAnimatingRef.current = false;
@@ -185,9 +179,6 @@ export function useBabylonTour() {
       setYawDegrees(y0);
     }
 
-    const loadCubemap = createCubemapLoader(preloadedCubemapsRef);
-    loadCubemapRef.current = loadCubemap;
-
     const navigate = (viewId) =>
       goToNextPoint(
         viewId,
@@ -201,7 +192,7 @@ export function useBabylonTour() {
           hidePanoramsRef,
           yawDegreesRef,
         },
-        loadCubemapRef.current
+        cubemapCacheRef.current
       );
 
     async function initBabylon() {
@@ -233,10 +224,15 @@ export function useBabylonTour() {
 
       try {
         if (!HIDE_PANORAMS) {
-          await loadCubemap(scene, firstCubemapKey);
+          await cubemapCache.get(scene, firstCubemapKey);
           if (!checkAlive()) return;
+          cubemapCache.pin([firstCubemapKey]);
           safeSetPercent(LOAD_CUBEMAP_DONE);
-          preloadCubemapsSequential(scene, firstCubemapKey, loadCubemap, checkAlive);
+          void cubemapCache.warm(
+            scene,
+            neighborCubemapKeys(first),
+            checkAlive
+          );
         } else {
           safeSetPercent(LOAD_CUBEMAP_DONE);
         }
@@ -295,7 +291,7 @@ export function useBabylonTour() {
               });
             });
           } else {
-            const cubemap1 = preloadedCubemapsRef.current[firstCubemapKey];
+            const cubemap1 = cubemapCache.peek(firstCubemapKey);
             if (!cubemap1) {
               safeSetError("Tour assets are incomplete. Please retry.");
               return;
@@ -355,7 +351,7 @@ export function useBabylonTour() {
           return;
         }
 
-        const cubemap1 = preloadedCubemapsRef.current[firstCubemapKey];
+        const cubemap1 = cubemapCache.peek(firstCubemapKey);
         if (!cubemap1) {
           safeSetError("Tour assets are incomplete. Please retry.");
           return;
@@ -434,8 +430,8 @@ export function useBabylonTour() {
       cameraRef.current = null;
       projectMeshesRef.current = [];
       pickMeshesRef.current = [];
-      preloadedCubemapsRef.current = {};
-      loadCubemapRef.current = null;
+      cubemapCacheRef.current?.disposeAll();
+      cubemapCacheRef.current = null;
       const canvas = canvasRef.current;
       if (canvas) canvas.style.filter = "";
     };
@@ -456,7 +452,7 @@ export function useBabylonTour() {
         hidePanoramsRef,
         yawDegreesRef,
       },
-      loadCubemapRef.current
+      cubemapCacheRef.current
     );
 
   const retry = () => {
@@ -543,12 +539,16 @@ export function useBabylonTour() {
 
     // Show panos → restore projection materials for current view.
     const view = CONFIG.views[indexRef.current];
-    const loadCubemap = loadCubemapRef.current;
-    if (!view || !loadCubemap) return;
+    const cubemapCache = cubemapCacheRef.current;
+    if (!view || !cubemapCache) return;
 
     try {
-      const cubemap = await loadCubemap(scene, cubemapKey(view));
+      const key = cubemapKey(view);
+      const cubemap = await cubemapCache.get(scene, key);
       if (!aliveRef.current || scene.isDisposed) return;
+
+      cubemapCache.pin([key]);
+      void cubemapCache.warm(scene, neighborCubemapKeys(view), () => aliveRef.current && !scene.isDisposed);
 
       const p = worldPos(view.position);
       const projectorPos = new Vector3(p.x, p.y, p.z);

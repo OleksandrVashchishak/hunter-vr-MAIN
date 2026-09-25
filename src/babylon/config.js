@@ -35,6 +35,12 @@ export const SHOW_NEAR_POINTS = true;
 /** true — hide all floor transition points */
 export const HIDE_POINTS = false;
 
+/**
+ * true  — hide floor points behind cage geometry (raycast vs GLB each ~2 frames)
+ * false — skip occlusion; points stay visible while in visibleIds
+ */
+export const HOTSPOT_OCCLUSION = false;
+
 /** Runtime cam frame. Use everywhere instead of raw view.position / look. */
 export function worldPos({ x, y, z }) {
   switch (CAM_XZ) {
@@ -62,34 +68,39 @@ export function worldPos({ x, y, z }) {
  * Tour viewpoints (coords from cordinates.txt, Max Z-up → Babylon Y-up).
  * Dropped cams without panos: Outdoor×3, Living/Dining/Kitchen extras,
  * Hall2 Cam002, Hall Cam001-add.
- * bathroom-4: no modeler coords — midpoint of Bedroom 4.
+ * bedroom-4-3: no dedicated modeler cam — midpoint of Bedroom 4.
+ * bathroom-4: coords from file "Bathroom 5" (mislabeled — is Bathroom 4).
  * mudroom-2: Cam002 was stair duplicate — approximate near mudroom-1.
  *
  * Optional per-view: `yaw` (degrees) — cubemap rotation around world Y
  * so a wrongly oriented bake aligns to the model. Tune via Align mode in toolbar.
+ * Optional: `locked: true` — show gray floor hotspot, no click / no navigate.
  */
 export const CONFIG = {
   views: [
     {
       id: "primary-bedroom-1",
-      position: { x: 700.073, y: 905.829, z: 1488.588 },
-      look: { x: 534.759, y: 905.829, z: 1254.816 },
+      position: { x: 534.759, y: 905.829, z: 1254.816 },
+      look: { x: 700.073, y: 905.829, z: 1488.588 },
       views: ["primary-bedroom-2", "primary-bedroom-3", "closet", "primary-hall-1"],
       room: "Primary Bedroom",
+      yaw: 90,
     },
     {
       id: "primary-bedroom-2",
-      position: { x: 534.759, y: 905.829, z: 1254.816 },
+      position: { x: 328.025, y: 905.829, z: 1179.331 },
       look: { x: 700.073, y: 905.829, z: 1488.588 },
       views: ["primary-bedroom-1", "primary-bedroom-3", "primary-hall-1", "closet"],
       room: "Primary Bedroom",
+      yaw: 90,
     },
     {
       id: "primary-bedroom-3",
-      position: { x: 328.025, y: 905.829, z: 1179.331 },
-      look: { x: 700.073, y: 905.829, z: 1488.588 },
+      position: { x: 700.073, y: 905.829, z: 1488.588 },
+      look: { x: 534.759, y: 905.829, z: 1254.816 },
       views: ["primary-bedroom-1", "primary-bedroom-2", "primary-hall-1", "primary-bathroom-2"],
       room: "Primary Bedroom",
+      yaw: 90,
     },
     {
       id: "closet",
@@ -140,7 +151,7 @@ export const CONFIG = {
       id: "bedroom-4-1",
       position: { x: -1478.81, y: 890.991, z: 1195.55 },
       look: { x: -1404.327, y: 890.991, z: 1017.223 },
-      views: ["bedroom-4-2", "bathroom-4", "primary-hall-3"],
+      views: ["bedroom-4-2", "bedroom-4-3", "bathroom-4", "primary-hall-3"],
       room: "Bedroom 4",
       yaw: -91,
     },
@@ -148,16 +159,26 @@ export const CONFIG = {
       id: "bedroom-4-2",
       position: { x: -1404.327, y: 890.991, z: 1017.223 },
       look: { x: -1478.81, y: 890.991, z: 1195.55 },
-      views: ["bedroom-4-1", "bathroom-4", "primary-hall-3"],
+      views: ["bedroom-4-1", "bedroom-4-3", "bathroom-4", "primary-hall-3"],
       room: "Bedroom 4",
       yaw: -91,
     },
     {
-      id: "bathroom-4",
+      id: "bedroom-4-3",
       position: { x: -1441.568, y: 890.991, z: 1106.386 },
       look: { x: -1478.81, y: 890.991, z: 1195.55 },
-      views: ["bedroom-4-1", "bedroom-4-2"],
+      views: ["bedroom-4-1", "bedroom-4-2", "bathroom-4"],
+      room: "Bedroom 4",
+      yaw: -91,
+      locked: true,
+    },
+    {
+      id: "bathroom-4",
+      position: { x: -239.285, y: 890.991, z: 1402.23 },
+      look: { x: -290.145, y: 890.991, z: 1501.488 },
+      views: ["bedroom-4-1", "bedroom-4-2", "bedroom-4-3"],
       room: "Bathroom 4",
+      yaw: -91,
     },
     {
       id: "office-1",
@@ -313,24 +334,25 @@ export const CONFIG = {
       id: "gym-1",
       position: { x: 232.278, y: 124.317, z: 1376.012 },
       look: { x: 118.884, y: 124.317, z: 1177.007 },
-      views: ["gym-2", "gym-3", "bathroom-2-1", "massage-1"],
+      views: ["gym-2", "bathroom-2-1", "massage-1"],
       room: "Gym",
       yaw: 170,
     },
     {
       id: "gym-2",
-      position: { x: 118.884, y: 151.962, z: 1177.007 },
-      look: { x: 232.278, y: 151.962, z: 1376.012 },
-      views: ["gym-1", "gym-3", "wellness-2", "massage-2"],
-      room: "Gym",
-    },
-    {
-      id: "gym-3",
       position: { x: -4.377, y: 152.002, z: 1177.007 },
       look: { x: 232.278, y: 152.002, z: 1376.012 },
-      views: ["gym-1", "gym-2", "wellness-1"],
+      views: ["gym-1",  "wellness-2", "massage-2"],
       room: "Gym",
+      yaw: 143,
     },
+    // {
+    //   id: "gym-3",
+    //   position: { x: 118.884, y: 151.962, z: 1177.007 },
+    //   look: { x: 232.278, y: 151.962, z: 1376.012 },
+    //   views: ["gym-1", "gym-2", "wellness-1"],
+    //   room: "Gym",
+    // },
     {
       id: "wellness-1",
       position: { x: -380.193, y: 152.53, z: 1114.33 },
@@ -438,6 +460,7 @@ export const CONFIG = {
       look: { x: -1743.641, y: 188.505, z: 914.537 },
       views: ["game-room-1", "game-room-2"],
       room: "Game Room",
+      yaw: 180,
     },
     {
       id: "bedroom-1-1",
@@ -484,4 +507,20 @@ export const CONFIG = {
 /** Cubemap asset prefix (legacy filenames may differ from id). */
 export function cubemapKey(view) {
   return view.cubemap || view.id;
+}
+
+/** Cubemap asset keys for all neighbor views (deduped, order preserved). */
+export function neighborCubemapKeys(view) {
+  if (!view?.views?.length) return [];
+  const out = [];
+  const seen = new Set();
+  for (const id of view.views) {
+    const neighbor = CONFIG.views.find((v) => v.id === id);
+    if (!neighbor || neighbor.locked) continue;
+    const key = cubemapKey(neighbor);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
 }
