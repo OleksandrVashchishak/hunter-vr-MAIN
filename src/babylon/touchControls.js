@@ -2,14 +2,16 @@ const PITCH_LIMIT = Math.PI / 2;
 
 /**
  * Touch look (drag). Returns dispose().
+ * @param {{ isBlocked?: () => boolean }} [opts]
  */
-export function attachTouchControls(canvas, camera, lastTouchRef) {
+export function attachTouchControls(canvas, camera, lastTouchRef, opts = {}) {
+  const { isBlocked } = opts;
   const sens = 500;
 
   const onPointerDown = (evt) => {
-    if (evt.pointerType === "touch") {
-      lastTouchRef.current = { x: evt.clientX, y: evt.clientY };
-    }
+    if (evt.pointerType !== "touch") return;
+    if (isBlocked?.()) return;
+    lastTouchRef.current = { x: evt.clientX, y: evt.clientY };
   };
 
   const onPointerMove = (evt) => {

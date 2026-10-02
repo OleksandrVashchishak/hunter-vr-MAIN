@@ -26,7 +26,7 @@ import { attachDesktopLookControls } from "./desktopLookControls";
 import { attachZoomControls } from "./zoomControls";
 import { createProjectedCursor } from "./projectedCursor";
 import { createFloorHotspots } from "./floorHotspots";
-import { createNoModelScene, createProjectionSkybox } from "./noModelScene";
+import { createNoModelScene, createProjectionSkybox, applyViewCageVisibility } from "./noModelScene";
 import { isClick } from "./helpers/isClick";
 import { initCamera } from "./initCamera";
 import { resolveStartViewIndex } from "./resolveStartView";
@@ -96,6 +96,8 @@ export function useBabylonTour() {
   const [bootId, setBootId] = useState(0);
   const [panoramasVisible, setPanoramasVisible] = useState(!HIDE_PANORAMS);
   const [alignMode, setAlignMode] = useState(false);
+  const [hotspotEditMode, setHotspotEditMode] = useState(false);
+  const [hotspotEditSelection, setHotspotEditSelection] = useState(null);
   const [yawDegrees, setYawDegrees] = useState(() =>
     viewYawDegrees(CONFIG.views[0])
   );
@@ -108,6 +110,7 @@ export function useBabylonTour() {
   const cursorApiRef = useRef(null);
   const hotspotsRef = useRef(null);
   const hotspotHoverRef = useRef(null);
+  const hotspotEditModeRef = useRef(false);
   const hidePanoramsRef = useRef(HIDE_PANORAMS);
   const debugLightRef = useRef(null);
   const removeResizeRef = useRef(null);
@@ -311,7 +314,7 @@ export function useBabylonTour() {
         return;
       }
 
-      engine.setHardwareScalingLevel(1);
+      engine.setHardwareScalingLevel(0.75);
       engine.setTextureFormatToUse(Engine.TEXTUREFORMAT_RGBA);
       engineRef.current = engine;
       const scene = new Scene(engine);
@@ -326,10 +329,16 @@ export function useBabylonTour() {
       const first = CONFIG.views[indexRef.current];
       const firstCubemapKey = cubemapKey(first);
 
+      const lookBlocked = () => !!hotspotsRef.current?.shouldBlockLook?.();
+
       const camera = initCamera(scene, canvas, first);
       cameraRef.current = camera;
-      removeTouchRef.current = attachTouchControls(canvas, camera, lastTouchRef);
-      removeDesktopLookRef.current = attachDesktopLookControls(canvas, camera, scene);
+      removeTouchRef.current = attachTouchControls(canvas, camera, lastTouchRef, {
+        isBlocked: lookBlocked,
+      });
+      removeDesktopLookRef.current = attachDesktopLookControls(canvas, camera, scene, {
+        isBlocked: lookBlocked,
+      });
       removeZoomRef.current = attachZoomControls(canvas, camera, lastTouchRef);
 
       try {
@@ -361,11 +370,23 @@ export function useBabylonTour() {
 
         syncPickMeshTransforms(pickMeshesRef.current);
 
+        applyViewCageVisibility(
+          projectMeshesRef.current,
+          CONFIG.views[indexRef.current]
+        );
+
         hotspotsRef.current?.dispose();
         hotspotsRef.current = createFloorHotspots(scene, {
           getPickMeshes: () => pickMeshesRef.current,
           hoverRef: hotspotHoverRef,
+          onEditChange: (sel) => {
+            if (!aliveRef.current) return;
+            setHotspotEditSelection(sel);
+          },
         });
+        if (hotspotEditModeRef.current) {
+          hotspotsRef.current.setEditMode(true);
+        }
         hotspotsRef.current.refresh(indexRef.current);
 
         // One more place after the first rendered frame — bounding/octree fully settled.
@@ -378,10 +399,11 @@ export function useBabylonTour() {
         safeSetPercent(100);
         safeSetLoading(false);
 
-        // First cubemap is up — warm the rest of the floor behind a light loader.
+        // First cubemap is up — warm the rest of the floor silently
+        // (main Tutor loader just finished; don't flash FloorLoader).
         if (!HIDE_PANORAMS) {
           void ensureFloorLoaded(CONFIG.views[indexRef.current], {
-            showLoader: true,
+            showLoader: false,
           });
         }
       };
@@ -511,6 +533,7 @@ export function useBabylonTour() {
       scene.onPointerUp = (evt, pickInfo) => {
         if (isAnimatingRef.current || floorLoadingRef.current) return;
         if (evt.button !== 0 || pickMeshesRef.current.length === 0) return;
+        if (hotspotEditModeRef.current || hotspotsRef.current?.isDragging()) return;
         if (isClick(pointerDownTime, pointerDownPos, evt)) {
           const hotspotViewId = hotspotsRef.current?.viewIdFromPick(pickInfo);
           const nextViewId =
@@ -625,6 +648,15 @@ export function useBabylonTour() {
     applyOpacityToMeshes(1);
   };
 
+  const toggleHotspotEditMode = () => {
+    if (!USE_MODEL || loading || loadError || isAnimatingRef.current) return;
+    const next = !hotspotEditModeRef.current;
+    hotspotEditModeRef.current = next;
+    setHotspotEditMode(next);
+    if (!next) setHotspotEditSelection(null);
+    hotspotsRef.current?.setEditMode(next);
+  };
+
   const togglePanoramas = async () => {
     if (!USE_MODEL || loading || loadError || isAnimatingRef.current) return;
 
@@ -715,6 +747,8 @@ export function useBabylonTour() {
         }
       }
 
+      applyViewCageVisibility(items, view);
+
       panoOpacityRef.current = opacity;
 
       if (debugLightRef.current && !debugLightRef.current.isDisposed?.()) {
@@ -740,12 +774,15 @@ export function useBabylonTour() {
     loadError,
     panoramasVisible,
     alignMode,
+    hotspotEditMode,
+    hotspotEditSelection,
     yawDegrees,
     navigateTo,
     retry,
     setOverlaysVisible,
     togglePanoramas,
     toggleAlignMode,
+    toggleHotspotEditMode,
     nudgeYaw,
     setYawDegreesValue,
   };

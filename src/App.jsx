@@ -6,6 +6,7 @@ import RoomSelector from "./components/RoomSelector";
 import Minimap from "./components/Minimap";
 import TourToolbar from "./components/TourToolbar";
 import AlignControls from "./components/AlignControls";
+import HotspotEditControls from "./components/HotspotEditControls";
 import Tutor from "./components/Tutor";
 import FloorLoader from "./components/FloorLoader";
 import LoadError from "./components/LoadError";
@@ -23,12 +24,15 @@ const BabylonViewer = () => {
     loadError,
     panoramasVisible,
     alignMode,
+    hotspotEditMode,
+    hotspotEditSelection,
     yawDegrees,
     navigateTo,
     retry,
     setOverlaysVisible,
     togglePanoramas,
     toggleAlignMode,
+    toggleHotspotEditMode,
     nudgeYaw,
     setYawDegreesValue,
   } = useBabylonTour();
@@ -63,6 +67,8 @@ const BabylonViewer = () => {
         onTogglePanoramas={togglePanoramas}
         alignMode={alignMode}
         onToggleAlign={toggleAlignMode}
+        hotspotEditMode={hotspotEditMode}
+        onToggleHotspotEdit={toggleHotspotEditMode}
         disabled={uiDisabled}
       />
       <AlignControls
@@ -71,6 +77,11 @@ const BabylonViewer = () => {
         viewId={viewId}
         onNudge={nudgeYaw}
         onYawChange={setYawDegreesValue}
+        disabled={uiDisabled}
+      />
+      <HotspotEditControls
+        active={hotspotEditMode}
+        selection={hotspotEditSelection}
         disabled={uiDisabled}
       />
       <Minimap

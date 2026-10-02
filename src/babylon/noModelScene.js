@@ -5,7 +5,7 @@ import {
   Color3,
   Vector3,
 } from "@babylonjs/core";
-import { CONFIG, worldPos } from "./config";
+import { CONFIG, isExteriorView, worldPos } from "./config";
 import { createProjectionMaterial } from "./useCubemapsAndMaterials";
 
 const SKYBOX_SIZE = 2000;
@@ -52,6 +52,28 @@ export function createProjectionSkybox(
     originalMaterial: null,
     holeFill: true,
   };
+}
+
+/**
+ * Outdoor = hide GLB cage (exterior faces go dark), keep skybox pano.
+ * Indoor = show cage again and park skybox on the projector.
+ */
+export function applyViewCageVisibility(projectMeshes, view) {
+  if (!projectMeshes?.length || !view) return;
+  const exterior = isExteriorView(view);
+  const p = worldPos(view.position);
+  const projectorPos = new Vector3(p.x, p.y, p.z);
+
+  for (const item of projectMeshes) {
+    const mesh = item?.mesh;
+    if (!mesh || mesh.isDisposed?.()) continue;
+    if (item.holeFill) {
+      mesh.setEnabled(true);
+      syncNoModelSkybox(mesh, item.material, projectorPos);
+    } else {
+      mesh.setEnabled(!exterior);
+    }
+  }
 }
 
 /**

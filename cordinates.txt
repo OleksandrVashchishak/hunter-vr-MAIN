@@ -54,8 +54,8 @@ Mudroom
 
 Camera001-1
 x -657.957cm y 685.729cm z 153.053cm
-Camera002-1
-x -838.593cm y 1163.529cm z 183.014cm
+Camera001-2
+x -527.114cm y 521.517cm z 153.053cm
 
 Gym
 Camera001  X    232,278cm  Y   1376,012cm  Z 124,317cm
@@ -88,6 +88,13 @@ Camera1
 x -1478.81cm y 1195.55cm z 890.991cm
 Camera2
 x -1404.327cm y 1017.223cm z 890.991cm
+
+Bathroom 4
+
+Camera_Bathroom_1
+x -1236.243cm y 1398.375cm z 890.991cm
+Camera_Bathroom_2
+x -1404.433cm y 1372.846cm z 890.991cm
 
 Bedroom 5
 

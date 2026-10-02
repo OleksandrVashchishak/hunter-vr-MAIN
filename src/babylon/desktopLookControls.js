@@ -7,8 +7,10 @@ function clampPitch(x) {
 /**
  * Desktop look з нормальною інерцією: velocity + exponential decay.
  * (Babylon camera.inertia на FreeCamera часто відчувається криво.)
+ * @param {{ isBlocked?: () => boolean }} [opts]
  */
-export function attachDesktopLookControls(canvas, camera, scene) {
+export function attachDesktopLookControls(canvas, camera, scene, opts = {}) {
+  const { isBlocked } = opts;
   const SENS = 0.0022; // rad / px
   const DECAY_PER_SEC = 7.5; // чим більше — швидше зупиняється
   const STOP_EPS = 1e-4;
@@ -23,6 +25,7 @@ export function attachDesktopLookControls(canvas, camera, scene) {
 
   const onPointerDown = (evt) => {
     if (evt.pointerType === "touch" || evt.button !== 0) return;
+    if (isBlocked?.()) return;
     dragging = true;
     lastX = evt.clientX;
     lastY = evt.clientY;

@@ -1,12 +1,12 @@
 import { Vector3 } from "@babylonjs/core";
-import { CONFIG, USE_MODEL, cubemapKey, worldPos } from "./config";
+import { CONFIG, USE_MODEL, cubemapKey, isExteriorView, worldPos } from "./config";
 import { easeInOutCubic } from "./easing";
 import {
   setMaterialYaw,
   updateMaterialProjection,
   viewYawDegrees,
 } from "./useCubemapsAndMaterials";
-import { syncNoModelSkybox } from "./noModelScene";
+import { applyViewCageVisibility, syncNoModelSkybox } from "./noModelScene";
 
 const MODEL_ANIM_FRAMES = 80;
 /** Blur in → swap → blur out. ~0.9s at 60fps. */
@@ -40,6 +40,24 @@ function settleCubemapCache(cache, nextView) {
   // the key list or retainOnly on every room hop.
 }
 
+function settleProjectionItems(items, nextCubemap, nextPos, nextYaw, nextView) {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const mat = item.material;
+    if (!mat || mat.isDisposed?.()) continue;
+    mat.setTexture("cubemap", nextCubemap);
+    mat.setTexture("cubemap2", nextCubemap);
+    mat.setFloat("mixFactor", 0.0);
+    setMaterialYaw(mat, nextYaw, nextYaw);
+    if (item.holeFill || !USE_MODEL) {
+      syncNoModelSkybox(item.mesh, mat, nextPos);
+    } else {
+      updateMaterialProjection(mat, nextPos, nextPos, 0.0);
+    }
+  }
+  applyViewCageVisibility(items, nextView);
+}
+
 /**
  * @param {string} viewId
  * @param {object} refs
@@ -61,7 +79,7 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
     yawDegreesRef,
   } = refs;
 
-  const transition =
+  let transition =
     options.transition ?? (USE_MODEL ? "walk" : "blur");
 
   if (isAnimatingRef.current) return;
@@ -82,6 +100,10 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
     const next = CONFIG.views[nextIndex];
     if (next.locked) {
       return;
+    }
+    // Outdoor sits outside the cage — never walk the GLB (dark exterior faces).
+    if (isExteriorView(curr) || isExteriorView(next)) {
+      transition = "blur";
     }
     const from = camera.position.clone();
     const to = toVec3(next.position);
@@ -165,16 +187,7 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
 
       if (animProgress >= MODEL_ANIM_FRAMES) {
         scene.onBeforeRenderObservable.remove(observer);
-
-        for (let i = 0; i < itemsWalk.length; i++) {
-          const mat = itemsWalk[i].material;
-          mat.setTexture("cubemap", nextCubemap);
-          mat.setTexture("cubemap2", nextCubemap);
-          mat.setFloat("mixFactor", 0.0);
-          setMaterialYaw(mat, nextYaw, nextYaw);
-          updateMaterialProjection(mat, nextPos, nextPos, 0.0);
-        }
-
+        settleProjectionItems(itemsWalk, nextCubemap, nextPos, nextYaw, next);
         setCurrent(nextIndex);
         settleCubemapCache(cubemapCache, next);
         isAnimatingRef.current = false;
@@ -222,18 +235,13 @@ function runBlurTransition({
     if (!swapped && animProgress >= half) {
       swapped = true;
       camera.position.copyFrom(nextPos);
-
-      projectMeshesRef.current.forEach((item) => {
-        item.material.setTexture("cubemap", nextCubemap);
-        item.material.setTexture("cubemap2", nextCubemap);
-        item.material.setFloat("mixFactor", 0.0);
-        setMaterialYaw(item.material, nextYaw, nextYaw);
-        if (USE_MODEL) {
-          updateMaterialProjection(item.material, nextPos, nextPos, 0.0);
-        } else {
-          syncNoModelSkybox(item.mesh, item.material, nextPos);
-        }
-      });
+      settleProjectionItems(
+        projectMeshesRef.current,
+        nextCubemap,
+        nextPos,
+        nextYaw,
+        next
+      );
       setCurrent(nextIndex);
       settleCubemapCache(cubemapCache, next);
     }

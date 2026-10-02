@@ -9,23 +9,23 @@ export const FLOORS = [
   {
     id: "floor-i",
     label: "Floor I",
-    viewBox: { w: 307, h: 222 },
+    viewBox: { w: 258, h: 185 },
     hotspots: [
-      [213.662, 110.662],
-      [227.662, 27.6618],
-      [248.662, 110.662],
-      [257.662, 75.6618],
-      [217.662, 76.6618],
-      [177.662, 192.662],
-      [136.662, 134.662],
-      [144.662, 163.662],
-      [110.662, 106.662],
-      [122.662, 86.6618],
-      [64.6618, 182.662],
-      [63.6618, 115.662],
+      [172.909, 92.909],
+      [186.909, 9.909],
+      [206.909, 108.909],
+      [211.909, 49.909],
+      [176.909, 58.909],
+      [136.909, 174.909],
+      [95.909, 116.909],
+      [103.909, 145.909],
+      [69.909, 88.909],
+      [11.909, 154.909],
+      [9.909, 99.909],
     ],
     rooms: {
       "stair-foyer": { label: "Stair Foyer", viewId: "stair-foyer-1" },
+      "stair-case": { label: "Stair Case", viewId: "stair-case" },
       "bedroom-1": { label: "Bedroom 1", viewId: "bedroom-1-1" },
       "bathroom-1": { label: "Bathroom 1", shortLabel: "Bath 1", viewId: "bathroom-1-1" },
       "bedroom-2": { label: "Bedroom 2", viewId: "bedroom-2-1" },
@@ -34,7 +34,7 @@ export const FLOORS = [
       mudroom: { label: "Mudroom", viewId: "mudroom-1" },
       sauna: { label: "Sauna", viewId: "sauna-1" },
       gym: { label: "Gym", viewId: "gym-1" },
-      laundry: { label: "Laundry", viewId: null },
+      wellness: { label: "Wellness Area", shortLabel: "Wellness", viewId: "wellness-1" },
       "massage-room": { label: "Massage Room", viewId: "massage-1" },
       "lower-powder": {
         label: "Lower Powder Room",
@@ -44,6 +44,7 @@ export const FLOORS = [
     },
     listOrder: [
       "stair-foyer",
+      "stair-case",
       "bedroom-1",
       "bathroom-1",
       "bedroom-2",
@@ -52,7 +53,7 @@ export const FLOORS = [
       "mudroom",
       "sauna",
       "gym",
-      "laundry",
+      "wellness",
       "massage-room",
       "lower-powder",
     ],
@@ -63,11 +64,10 @@ export const FLOORS = [
       "gym",
       "bathroom-2",
       "sauna",
-      "lower-powder",
       "mudroom",
       "stair-foyer",
+      "lower-powder",
       "bathroom-1",
-      "laundry",
       "game-room",
       "bedroom-1",
     ],
@@ -75,25 +75,26 @@ export const FLOORS = [
   {
     id: "floor-ii",
     label: "Floor II",
-    viewBox: { w: 340, h: 165 },
+    viewBox: { w: 284, h: 123 },
     hotspots: [
-      [200.024, 29.6373],
-      [261.275, 93.716],
-      [321.316, 104.783],
-      [200.024, 135.179],
-      [144.426, 113.505],
-      [59.6159, 103.139],
-      [94.4821, 132.294],
-      [108.617, 74.8693],
+      [150.317, 9.909],
+      [184.955, 74.933],
+      [271.609, 85.055],
+      [149.955, 111.933],
+      [96.955, 85.933],
+      [9.909, 83.411],
+      [43.955, 112.933],
+      [53.955, 59.933],
     ],
     rooms: {
       entry: { label: "Entry Hall", shortLabel: "Entry", viewId: "entry-hall-1" },
       dining: { label: "Dining Room", shortLabel: "Dining", viewId: "dining" },
       kitchen: { label: "Kitchen", viewId: "kitchen" },
       "living-room": { label: "Living Room", viewId: "living" },
+      outdoor: { label: "Outdoor", viewId: "outdoor-1" },
       "bedroom-3": { label: "Bedroom 3", viewId: "bedroom-3-1" },
       "bathroom-3": { label: "Bathroom 3", shortLabel: "Bath 3", viewId: "bathroom-3-1" },
-      pool: { label: "Pool", viewId: null },
+      pool: { label: "Pool", viewId: "outdoor-3" },
       "main-powder": {
         label: "Main Powder Room",
         shortLabel: "Main Powder",
@@ -105,6 +106,7 @@ export const FLOORS = [
       "dining",
       "kitchen",
       "living-room",
+      "outdoor",
       "bedroom-3",
       "bathroom-3",
       "pool",
@@ -124,16 +126,17 @@ export const FLOORS = [
   {
     id: "floor-iii",
     label: "Floor III",
-    viewBox: { w: 331, h: 175 },
+    viewBox: { w: 260, h: 159 },
     hotspots: [
-      [215.662, 30.6618],
-      [218.662, 81.6618],
-      [249.662, 81.6618],
-      [295.662, 78.6618],
-      [220.662, 146.662],
-      [148.426, 145.505],
-      [75.6618, 100.662],
-      [115.662, 84.6618],
+      [156.909, 24.661],
+      [159.909, 75.661],
+      [172.909, 102.661],
+      [190.909, 75.661],
+      [236.909, 72.661],
+      [159.909, 148.661],
+      [91.909, 118.661],
+      [9.909, 100.661],
+      [56.909, 77.661],
     ],
     rooms: {
       "primary-bath": {
@@ -150,8 +153,17 @@ export const FLOORS = [
         viewId: "office-bathroom-1",
       },
       "bedroom-4": { label: "Bedroom 4", viewId: "bedroom-4-1" },
-      "bathroom-4": { label: "Bathroom 4", shortLabel: "Bath 4", viewId: "bathroom-4" },
-      entry: { label: "Primary Hall", shortLabel: "Hall", viewId: "primary-hall-1" },
+      "bathroom-4": { label: "Bathroom 4", shortLabel: "Bath 4", viewId: "bathroom-4-2" },
+      "primary-hall": {
+        label: "Primary Hall",
+        shortLabel: "Hall",
+        viewId: "primary-hall-1",
+      },
+      "top-landing": {
+        label: "Top Landing",
+        shortLabel: "Landing",
+        viewId: "primary-hall-3",
+      },
       "main-powder": {
         label: "Main Powder Room",
         shortLabel: "Main Powder",
@@ -162,6 +174,8 @@ export const FLOORS = [
       "primary-bath",
       "primary-bedroom",
       "closet",
+      "primary-hall",
+      "top-landing",
       "office",
       "office-bath",
       "bedroom-4",
@@ -170,10 +184,11 @@ export const FLOORS = [
     minimapOrder: [
       "office",
       "office-bath",
+      "primary-hall",
       "closet",
       "primary-bedroom",
       "primary-bath",
-      "entry",
+      "top-landing",
       "bedroom-4",
       "bathroom-4",
     ],
@@ -245,6 +260,12 @@ export function getActiveHotspot(floor, viewId, roomLabel) {
   // Secondary panoramas share a room label but not the entry viewId.
   if (index < 0 && roomLabel) {
     index = floor.minimapOrder.findIndex((id) => floor.rooms[id]?.label === roomLabel);
+  }
+  // Floor III hall corridor: 1–2 → Primary Hall pin, 3–4 → Top Landing pin.
+  if (index < 0 && viewId?.startsWith("primary-hall-")) {
+    const n = Number(String(viewId).split("-").pop());
+    const pinId = Number.isFinite(n) && n >= 3 ? "top-landing" : "primary-hall";
+    index = floor.minimapOrder.indexOf(pinId);
   }
   if (index < 0) return null;
   const point = floor.hotspots[index];

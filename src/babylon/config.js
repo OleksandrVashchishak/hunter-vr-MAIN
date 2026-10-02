@@ -1,5 +1,5 @@
 /**
- * true  — show debug toolbar (align + panorama/model toggle)
+ * true  — show debug toolbar (align + hotspot edit + panorama/model toggle)
  * false — hide those buttons in production
  */
 export const DEV_MODE = true;
@@ -70,16 +70,47 @@ export function worldPos({ x, y, z }) {
   }
 }
 
+/** Config/Max space ← runtime world (inverse of worldPos). */
+export function configPos({ x, y, z }) {
+  switch (CAM_XZ) {
+    case "negZ":
+      return { x, y, z: -z };
+    case "negX":
+      return { x: -x, y, z };
+    case "negXZ":
+      return { x: -x, y, z: -z };
+    case "swap":
+      return { x: z, y, z: x };
+    case "swapNegZ":
+      return { x: -z, y, z: x };
+    case "swapNegX":
+      return { x: z, y, z: -x };
+    case "swapNegXZ":
+      return { x: -z, y, z: -x };
+    case "none":
+    default:
+      return { x, y, z };
+  }
+}
+
+/** Floor marker XYZ in config space. Falls back to camera `position`. */
+export function viewHotspotPos(view) {
+  return view?.hotspot || view?.position;
+}
+
 /**
  * Tour viewpoints (coords from cordinates.txt, Max Z-up → Babylon Y-up).
- * Dropped cams without panos: Outdoor×3, Living/Dining/Kitchen extras,
- * Hall2 Cam002, Hall Cam001-add.
+ * Outdoor×3: coords in config, panos not in new-panorams yet.
  * bedroom-4-3: no dedicated modeler cam — midpoint of Bedroom 4.
- * bathroom-4: coords from file "Bathroom 5" (mislabeled — is Bathroom 4).
- * mudroom-2: Cam002 was stair duplicate — approximate near mudroom-1.
+ * bathroom-4-1: panos missing (coords from Camera_Bathroom_1).
+ * mudroom-2: Corona Camera001-2.
  *
  * Optional per-view: `yaw` (degrees) — cubemap rotation around world Y
  * so a wrongly oriented bake aligns to the model. Tune via Align mode in toolbar.
+ * Optional: `hotspot: { x, y, z }` — floor marker offset from camera `position`
+ * (same Max→Bab space). Default = camera. Tune via Hotspot edit in toolbar.
+ * Optional: `bigHotspot: true` — floating pulsating sphere at `hotspot`/`position`
+ * (no floor snap; Y stays as config). Use for hard-to-see spots (stairs, voids).
  * Optional: `locked: true` — show gray floor hotspot, no click / no navigate.
  */
 export const CONFIG = {
@@ -96,7 +127,7 @@ export const CONFIG = {
       id: "primary-bedroom-2",
       position: { x: 328.025, y: 905.829, z: 1179.331 },
       look: { x: 700.073, y: 905.829, z: 1488.588 },
-      views: ["primary-bedroom-1", "primary-bedroom-3", "primary-hall-1"],
+      views: ["primary-bedroom-1", "primary-bedroom-3", "primary-hall-1", 'closet'],
       room: "Primary Bedroom",
       yaw: 90,
     },
@@ -107,14 +138,16 @@ export const CONFIG = {
       views: ["primary-bedroom-1", "primary-bedroom-2", "primary-hall-1", "primary-bathroom-2"],
       room: "Primary Bedroom",
       yaw: 90,
+      hotspot: { x: 720.215, y: 905.829, z: 1416.751 },
     },
     {
       id: "closet",
       position: { x: 99.284, y: 905.829, z: 1489.656 },
       look: { x: 700.073, y: 905.829, z: 1488.588 },
-      // views: ["primary-bedroom-1", "primary-bedroom-2", "primary-hall-2"],
+      views: [ "primary-bedroom-2", "primary-hall-2"],
       room: "Closet",
       yaw: 90,
+      hotspot: { x: 89.912, y: 905.829, z: 1286.042 },
     },
     {
       id: "primary-bathroom-1",
@@ -130,6 +163,7 @@ export const CONFIG = {
       look: { x: -226.291, y: 905.829, z: 792.284 },
       views: ["primary-bathroom-1", "primary-hall-2"],
       room: "Primary Bathroom",
+      hotspot: { x: -202.118, y: 905.829, z: 971.902 },
       yaw: 90,
     },
     {
@@ -144,7 +178,7 @@ export const CONFIG = {
       id: "primary-hall-2",
       position: { x: -205.162, y: 905.829, z: 1184.943 },
       look: { x: -51.59, y: 905.829, z: 1184.943 },
-      views: ["primary-hall-1", "primary-hall-3", "primary-bathroom-2" ],
+      views: ["primary-hall-1", "primary-hall-3" ],
       room: "Primary Hall",
       yaw: 90,
     },
@@ -152,7 +186,15 @@ export const CONFIG = {
       id: "primary-hall-3",
       position: { x: -783.491, y: 905.829, z: 1246.964 },
       look: { x: -205.162, y: 905.829, z: 1184.943 },
-      views: ["primary-hall-2", "bedroom-4-1"],
+      views: ["primary-hall-2", "primary-hall-4"],
+      room: "Primary Hall",
+      yaw: 90,
+    },
+    {
+      id: "primary-hall-4",
+      position: { x: -1111.076, y: 905.829, z: 1188.22 },
+      look: { x: -783.491, y: 905.829, z: 1246.964 },
+      views: ["primary-hall-3"],
       room: "Primary Hall",
       yaw: 90,
     },
@@ -160,7 +202,7 @@ export const CONFIG = {
       id: "bedroom-4-1",
       position: { x: -1478.81, y: 890.991, z: 1195.55 },
       look: { x: -1404.327, y: 890.991, z: 1017.223 },
-      views: ["bedroom-4-2", "bedroom-4-3", "bathroom-4"],
+      views: ["bedroom-4-2", "bedroom-4-3"],
       room: "Bedroom 4",
       yaw: -91,
     },
@@ -168,24 +210,23 @@ export const CONFIG = {
       id: "bedroom-4-2",
       position: { x: -1404.327, y: 890.991, z: 1017.223 },
       look: { x: -1478.81, y: 890.991, z: 1195.55 },
-      views: ["bedroom-4-1", "bedroom-4-3"],
+      views: ["bedroom-4-1"],
       room: "Bedroom 4",
+      yaw: -91,
+    },
+    {
+      id: "bathroom-4-2",
+      position: { x: -1236.243, y: 890.991, z: 1398.375 },
+      look: { x: -1404.433, y: 890.991, z: 1372.846 },
+      views: ["bathroom-4-2", "bedroom-4-3"],
+      room: "Bathroom 4",
       yaw: -91,
     },
     {
       id: "bedroom-4-3",
-      position: { x: -1441.568, y: 890.991, z: 1106.386 },
-      look: { x: -1478.81, y: 890.991, z: 1195.55 },
-      views: ["bedroom-4-1", "bedroom-4-2", "bathroom-4"],
-      room: "Bedroom 4",
-      yaw: -91,
-      locked: true,
-    },
-    {
-      id: "bathroom-4",
-      position: { x: -239.285, y: 890.991, z: 1402.23 },
-      look: { x: -290.145, y: 890.991, z: 1501.488 },
-      views: ["bedroom-4-1"],
+      position: { x: -1404.433, y: 890.991, z: 1372.846 },
+      look: { x: -1236.243, y: 890.991, z: 1398.375 },
+      views: [ "bedroom-4-3", 'bathroom-4-2', 'bedroom-4-1'],
       room: "Bathroom 4",
       yaw: -91,
     },
@@ -201,7 +242,7 @@ export const CONFIG = {
       id: "office-2",
       position: { x: -359.542, y: 890.991, z: 1576.75 },
       look: { x: -111.088, y: 890.991, z: 1752.144 },
-      views: ["office-1", "office-bathroom-1"],
+      views: ["office-1", "office-bathroom-1", 'office-bathroom-2'],
       room: "Office",
       yaw: 179,
     },
@@ -225,23 +266,60 @@ export const CONFIG = {
       id: "living",
       position: { x: 317.719, y: 555.764, z: 1380.343 },
       look: { x: -213.906, y: 555.764, z: 1368.082 },
-      views: ["dining",  "entry-hall-1"],
+      views: ["living-2", "living-3", "dining", "dining-2", "entry-hall-1", "outdoor-1", "outdoor-2", "outdoor-3"],
       room: "Living Room",
       yaw: 126,
+      hotspot: { x: 328.945, y: 555.764, z: 1477.062 },
+    },
+    {
+      id: "living-3",
+      position: { x: 765.358, y: 555.764, z: 1241.794 },
+      look: { x: 317.719, y: 555.764, z: 1380.343 },
+      views: ["living", 'outdoor-3'],
+      room: "Living Room",
+      yaw: 90,
+      hotspot: { x: 774.613, y: 555.764, z: 1426.772 },
+    },
+    {
+      id: "living-2",
+      position: { x: 107.853, y: 555.647, z: 1118.265 },
+      look: { x: 317.719, y: 555.647, z: 1380.343 },
+      views: ["living", "dining", "kitchen"],
+      room: "Living Room",
+      yaw: 146,
+      hotspot: { x: 20.877, y: 555.647, z: 1167.05 },
     },
     {
       id: "dining",
       position: { x: -213.906, y: 555.647, z: 1368.082 },
       look: { x: 317.719, y: 555.647, z: 1380.343 },
-      views: ["living", "kitchen", "entry-hall-1"],
+      views: ["dining-2", "living", "living-3", 'living-2', "kitchen", "kitchen-2", "entry-hall-1"],
       room: "Dining Room",
       yaw: 126,
+      hotspot: { x: -168.211, y: 555.647, z: 1309.208 },
+    },
+    {
+      id: "dining-2",
+      position: { x: -433.282, y: 555.647, z: 1210.377 },
+      look: { x: -213.906, y: 555.647, z: 1368.082 },
+      views: ["dining", "living",  "entry-hall-1", 'kitchen-2'],
+      room: "Dining Room",
+      yaw: 90,
     },
     {
       id: "kitchen",
       position: { x: -119.561, y: 555.647, z: 766.581 },
       look: { x: 317.719, y: 555.647, z: 1380.343 },
-      views: [ "dining", "entry-hall-2"],
+      views: ["dining", 'kitchen-2'],
+      room: "Kitchen",
+      yaw: 90,
+      hotspot: { x: -76.012, y: 555.647, z: 825.743 },
+    },
+    {
+      id: "kitchen-2",
+      position: { x: -338.657, y: 555.706, z: 1019.756 },
+      look: { x: -119.561, y: 555.706, z: 766.581 },
+      views: [ "dining", 'living-2'],
       room: "Kitchen",
       yaw: 90,
     },
@@ -249,17 +327,59 @@ export const CONFIG = {
       id: "entry-hall-1",
       position: { x: -774.5, y: 555.647, z: 1157.144 },
       look: { x: -774.5, y: 555.647, z: 1023.059 },
-      views: ["entry-hall-2", "living", "dining",],
+      views: ["entry-hall-2", "entry-hall-3", "living", "dining", "dining-2", "stair-case"],
       room: "Entry Hall",
       yaw: 90,
     },
-    // {
-    //   id: "entry-hall-2",
-    //   position: { x: -774.5, y: 555.647, z: 1023.059 },
-    //   look: { x: -774.5, y: 555.647, z: 1157.144 },
-    //   views: ["entry-hall-1", "kitchen", "main-powder", "stair-foyer-1", "stair-foyer-3"],
-    //   room: "Entry Hall",
-    // },
+    {
+      id: "entry-hall-2",
+      position: { x: -1183.333, y: 555.647, z: 1135.721 },
+      look: { x: -774.5, y: 555.647, z: 1157.144 },
+      views: ["entry-hall-1", "entry-hall-3", "main-powder", 'bedroom-3-2'],
+      room: "Entry Hall",
+      yaw: 90,
+    },
+    {
+      id: "entry-hall-3",
+      position: { x: -774.5, y: 555.647, z: 1023.059 },
+      look: { x: -774.5, y: 555.647, z: 1157.144 },
+      views: ["entry-hall-1"],
+      room: "Entry Hall",
+    
+    },
+    {
+      id: "outdoor-1",
+      position: { x: 266.265, y: 555.647, z: 2344.781 },
+      look: { x: 869.57, y: 555.647, z: 1921.735 },
+      views: ["outdoor-2"],
+      room: "Outdoor",
+      yaw: 10,
+    },
+    {
+      id: "outdoor-2",
+      position: { x: 869.57, y: 555.647, z: 1921.735 },
+      look: { x: 266.265, y: 555.647, z: 2344.781 },
+      views: [ "outdoor-1", "outdoor-3"],
+      room: "Outdoor",
+      yaw: 10,
+    },
+    {
+      id: "outdoor-3",
+      position: { x: 1026.008, y: 555.647, z: 1241.794 },
+      look: { x: 765.358, y: 555.647, z: 1241.794 },
+      views: [ "outdoor-2", 'living-3'],
+      room: "Outdoor",
+      yaw: 90,
+    },
+    {
+      id: "stair-case",
+      position: { x: -774.5, y: 386.247, z: 1476.864 },
+      look: { x: -774.5, y: 555.647, z: 1023.059 },
+      views: ['stair-foyer-3', 'stair-foyer-1', 'entry-hall-1'],
+      room: "Stair Case",
+      bigHotspot: true,
+      hotspot: { x: -774.5, y: 320, z: 1476.864 },
+    },
     {
       id: "bedroom-3-1",
       position: { x: -1515.576, y: 555.647, z: 1184.0 },
@@ -272,7 +392,7 @@ export const CONFIG = {
       id: "bedroom-3-2",
       position: { x: -1403.273, y: 555.647, z: 1397.857 },
       look: { x: -1515.576, y: 555.647, z: 1184.0 },
-      views: [ "bathroom-3-1"],
+      views: [ "bathroom-3-1", 'bathroom-3-2', 'bedroom-3-1','entry-hall-2'],
       room: "Bedroom 3",
       yaw: -85,
     },
@@ -290,7 +410,7 @@ export const CONFIG = {
       look: { x: -1142.074, y: 555.647, z: 1416.295 },
       views: ["bathroom-3-1", "bedroom-3-2"],
       room: "Bathroom 3",
-      yaw: 185,
+      yaw: 95,
     },
     {
       id: "main-powder",
@@ -304,15 +424,16 @@ export const CONFIG = {
       id: "stair-foyer-1",
       position: { x: -838.593, y: 183.014, z: 1163.529 },
       look: { x: -956.286, y: 183.014, z: 1476.864 },
-      views: ["stair-foyer-2", "stair-foyer-3", "entry-hall-2", 'game-room-2'],
+      views: ["stair-foyer-2", 'bedroom-1-2', "stair-foyer-3", "stair-case", "entry-hall-3", "game-room-2", "lower-powder-2"],
       room: "Stair Foyer",
       yaw: 90,
+      hotspot: { x: -887.523, y: 183.014, z: 1240.629 },
     },
     {
       id: "stair-foyer-2",
       position: { x: -956.286, y: 183.014, z: 1476.864 },
       look: { x: -838.593, y: 183.014, z: 1163.529 },
-      views: ["stair-foyer-1", "stair-foyer-3", ],
+      views: ["stair-foyer-1", "stair-foyer-3"],
       room: "Stair Foyer",
       yaw: 180,
     },
@@ -320,25 +441,26 @@ export const CONFIG = {
       id: "stair-foyer-3",
       position: { x: -607.929, y: 183.014, z: 1020.832 },
       look: { x: -838.593, y: 183.014, z: 1163.529 },
-      views: ["stair-foyer-1", "stair-foyer-2", "mudroom-1", "wellness-1", "entry-hall-2"],
+      views: ["stair-foyer-1", 'stair-case',  "stair-foyer-2", "mudroom-1", "wellness-1", "entry-hall-3", "game-room-2"],
       room: "Stair Foyer",
       yaw: 180,
     },
     {
       id: "mudroom-1",
       position: { x: -657.957, y: 153.053, z: 685.729 },
-      look: { x: -750.0, y: 153.053, z: 800.0 },
+      look: { x: -527.114, y: 153.053, z: 521.517 },
       views: ["mudroom-2", "stair-foyer-3"],
       room: "Mudroom",
       yaw: 90,
     },
-    // {
-    //   id: "mudroom-2",
-    //   position: { x: -750.0, y: 153.053, z: 800.0 },
-    //   look: { x: -657.957, y: 153.053, z: 685.729 },
-    //   views: ["mudroom-1", "stair-foyer-1"],
-    //   room: "Mudroom",
-    // },
+    {
+      id: "mudroom-2",
+      position: { x: -527.114, y: 153.053, z: 521.517 },
+      look: { x: -657.957, y: 153.053, z: 685.729 },
+      views: ["mudroom-1",],
+      room: "Mudroom",
+      yaw: 180,
+    },
     {
       id: "gym-1",
       position: { x: 232.278, y: 124.317, z: 1376.012 },
@@ -351,7 +473,7 @@ export const CONFIG = {
       id: "gym-2",
       position: { x: -4.377, y: 152.002, z: 1177.007 },
       look: { x: 232.278, y: 152.002, z: 1376.012 },
-      views: ["gym-1", "wellness-1", "wellness-2"],
+      views: ["gym-1", "wellness-2"],
       room: "Gym",
       yaw: 143,
     },
@@ -369,6 +491,7 @@ export const CONFIG = {
       views: ["wellness-2", "gym-2", "stair-foyer-3", "sauna-3"],
       room: "Wellness Area",
       yaw: 180,
+      hotspot: { x: -376.976, y: 152.53, z: 1079.881 },
     },
     {
       id: "wellness-2",
@@ -416,12 +539,13 @@ export const CONFIG = {
       views: ["massage-1", "wellness-2"],
       room: "Massage Room",
       yaw: 90,
+      hotspot: { x: -354.22, y: 152.002, z: 1464.788 },
     },
     {
       id: "bedroom-2-1",
       position: { x: 67.275, y: 103.285, z: 2225.562 },
       look: { x: -199.215, y: 103.285, z: 2071.556 },
-      views: ["bathroom-2-2"],
+      views: ['bedroom-2-2'],
       room: "Bedroom 2",
       yaw: -90,
     },
@@ -429,7 +553,7 @@ export const CONFIG = {
       id: "bedroom-2-2",
       position: { x: -199.215, y: 103.285, z: 2071.556 },
       look: { x: 67.275, y: 103.285, z: 2225.562 },
-      views: ["bedroom-2-1"],
+      views: ["bedroom-2-1",'bathroom-2-2'],
       room: "Bedroom 2",
       yaw: -270,
     },
@@ -437,7 +561,7 @@ export const CONFIG = {
       id: "bathroom-2-1",
       position: { x: 324.36, y: 116.904, z: 1851.858 },
       look: { x: 324.36, y: 116.904, z: 1988.079 },
-      views: ["bathroom-2-2"],
+      views: ["bathroom-2-2",],
       room: "Bathroom 2",
       yaw: 90,
     },
@@ -445,7 +569,7 @@ export const CONFIG = {
       id: "bathroom-2-2",
       position: { x: 324.36, y: 116.904, z: 1988.079 },
       look: { x: 324.36, y: 116.904, z: 1851.858 },
-      views: ["bathroom-2-1", "bedroom-2-1"],
+      views: ["bathroom-2-1", 'bedroom-2-2'],
       room: "Bathroom 2",
     },
     {
@@ -454,12 +578,13 @@ export const CONFIG = {
       look: { x: -1321.269, y: 188.505, z: 1156.996 },
       views: ["game-room-2", "game-room-3"],
       room: "Game Room",
+      hotspot: { x: -1732.915, y: 188.505, z: 1060.049 },
     },
     {
       id: "game-room-2",
       position: { x: -1321.269, y: 188.505, z: 1156.996 },
       look: { x: -1743.641, y: 188.505, z: 914.537 },
-      views: ["game-room-1", "game-room-3", 'stair-foyer-1',],
+      views: ["game-room-1", "game-room-3", 'stair-foyer-1',  'stair-foyer-3'],
       room: "Game Room",
       yaw: -90,
     },
@@ -470,6 +595,7 @@ export const CONFIG = {
       views: ["game-room-1", "game-room-2"],
       room: "Game Room",
       yaw: 180,
+      hotspot: { x: -1873.817, y: 188.505, z: 557.461 },
     },
     {
       id: "bedroom-1-1",
@@ -477,6 +603,7 @@ export const CONFIG = {
       look: { x: -1423.943, y: 188.505, z: 1296.168 },
       views: ["bedroom-1-2", "game-room-1"],
       room: "Bedroom 1", 
+      hotspot: { x: -1866.359, y: 188.505, z: 1536.033 },
     },
     {
       id: "bedroom-1-2",
@@ -485,12 +612,13 @@ export const CONFIG = {
       views: ["bedroom-1-1", "bathroom-1-2", "stair-foyer-1"],
       room: "Bedroom 1",
       yaw: 270,
+      hotspot: { x: -1381.806, y: 188.505, z: 1282.125 },
     },
     {
       id: "bathroom-1-1",
       position: { x: -1234.418, y: 188.505, z: 1466.594 },
       look: { x: -1351.526, y: 188.505, z: 1365.581 },
-      views: ["bathroom-1-2", "bedroom-1-1"],
+      views: ["bathroom-1-2"],
       room: "Bathroom 1",
       yaw: 80,
     },
@@ -506,9 +634,17 @@ export const CONFIG = {
       id: "lower-powder",
       position: { x: -833.452, y: 196.384, z: 915.714 },
       look: { x: -838.593, y: 196.384, z: 1163.529 },
-      views: ["stair-foyer-1"],
+      views: ["lower-powder-2"],
       room: "Lower Powder Room",
       yaw: -90,
+    },
+    {
+      id: "lower-powder-2",
+      position: { x: -895.835, y: 183.014, z: 995.913 },
+      look: { x: -833.452, y: 183.014, z: 915.714 },
+      views: ["lower-powder", "stair-foyer-1", 'stair-foyer-2'],
+      room: "Lower Powder Room",
+      yaw: 35,
     },
   ],
 };
@@ -516,6 +652,11 @@ export const CONFIG = {
 /** Cubemap asset prefix (legacy filenames may differ from id). */
 export function cubemapKey(view) {
   return view.cubemap || view.id;
+}
+
+/** Outdoor cams sit outside the GLB cage — hide model, skybox-only. */
+export function isExteriorView(view) {
+  return !!view && (view.room === "Outdoor" || String(view.id || "").startsWith("outdoor-"));
 }
 
 /** Cubemap asset keys for all neighbor views (deduped, order preserved). */
