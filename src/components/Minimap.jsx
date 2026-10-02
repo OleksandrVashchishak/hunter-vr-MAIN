@@ -52,12 +52,19 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
   const [floorId, setFloorId] = useState("floor-ii");
   const [trackedViewId, setTrackedViewId] = useState(null);
   const radarRef = useRef(null);
+  const pingRef = useRef(null);
   const radarFloorRef = useRef(null);
   /** Last painted % position — kept across brief active=null frames. */
   const visualPosRef = useRef(null);
   /** In-flight lerp: { fromX, fromY, toX, toY, start, duration }. */
   const animRef = useRef(null);
   const svgHostRef = useRef(null);
+
+  const setPingVisible = (on) => {
+    const ping = pingRef.current;
+    if (!ping) return;
+    ping.classList.toggle(styles.radarPingOn, on);
+  };
   const onSelectRoomRef = useRef(onSelectRoom);
   onSelectRoomRef.current = onSelectRoom;
 
@@ -123,6 +130,7 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
     if (!visual || !sameFloor) {
       visualPosRef.current = { x: nextLeft, y: nextTop };
       animRef.current = null;
+      setPingVisible(false);
       radarFloorRef.current = floor.id;
       const el = radarRef.current;
       if (el) {
@@ -148,6 +156,7 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
       start: performance.now(),
       duration: RADAR_TRAVEL_MS,
     };
+    setPingVisible(true);
     radarFloorRef.current = floor.id;
   }, [
     open,
@@ -177,7 +186,10 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
           visualPosRef.current = { x, y };
           el.style.left = `${x}%`;
           el.style.top = `${y}%`;
-          if (t >= 1) animRef.current = null;
+          if (t >= 1) {
+            animRef.current = null;
+            setPingVisible(false);
+          }
         } else if (visualPosRef.current) {
           el.style.left = `${visualPosRef.current.x}%`;
           el.style.top = `${visualPosRef.current.y}%`;
@@ -268,6 +280,8 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
                 className={styles.radar}
                 aria-hidden
               >
+                {/* White dot while traveling — fades in at hop start, out on arrive */}
+                <span ref={pingRef} className={styles.radarPing} />
                 <svg className={styles.radarSvg} viewBox="0 0 100 100">
                   <defs>
                     <radialGradient id="minimapRadarFade" cx="50%" cy="50%" r="50%">

@@ -213,7 +213,29 @@ $font: "ABC Areal", sans-serif;
   will-change: left, top, transform;
 }
 
+/* Dot under the cone — only while the pin is traveling between rooms. */
+.radarPing {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+
+.radarPingOn {
+  opacity: 1;
+}
+
 .radarSvg {
+  position: relative;
+  z-index: 0;
   display: block;
   width: 100%;
   height: 100%;
