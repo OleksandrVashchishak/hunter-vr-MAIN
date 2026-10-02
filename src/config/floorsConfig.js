@@ -152,6 +152,11 @@ export const FLOORS = [
         shortLabel: "Office Bath",
         viewId: "office-bathroom-1",
       },
+      "bedroom-5-hall": {
+        label: "Bedroom 5 Hall",
+        shortLabel: "B5 Hall",
+        viewId: "bedroom-5-hall",
+      },
       "bedroom-4": { label: "Bedroom 4", viewId: "bedroom-4-1" },
       "bathroom-4": { label: "Bathroom 4", shortLabel: "Bath 4", viewId: "bathroom-4-2" },
       "primary-hall": {
@@ -178,6 +183,7 @@ export const FLOORS = [
       "top-landing",
       "office",
       "office-bath",
+      "bedroom-5-hall",
       "bedroom-4",
       "bathroom-4",
     ],

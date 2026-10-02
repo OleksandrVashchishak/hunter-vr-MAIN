@@ -166,6 +166,7 @@ $font: "ABC Areal", sans-serif;
 .markersSvg {
   position: absolute;
   inset: 0;
+  /* Paths/labels ignore clicks; .hotspotRing opts back in. */
   pointer-events: none;
 
   :global(svg) {
@@ -176,25 +177,21 @@ $font: "ABC Areal", sans-serif;
   }
 }
 
-.hotspot {
-  position: absolute;
-  z-index: 2;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  transform: translate(-50%, -50%);
+/* Hover/hit target = SVG stroke ring (same cx/cy as the white dot). */
+.hotspotRing {
+  fill: transparent;
+  pointer-events: auto;
   cursor: pointer;
+  transition: fill 0.15s ease;
+  outline: none;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
+  &:hover,
+  &:focus-visible {
+    fill: rgba(255, 255, 255, 0.12);
   }
 
   &:focus-visible {
-    outline: 1px solid rgba(255, 255, 255, 0.7);
-    outline-offset: 2px;
+    stroke: rgba(255, 255, 255, 0.85);
   }
 }
 
@@ -205,7 +202,7 @@ $font: "ABC Areal", sans-serif;
   height: 78px;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  will-change: transform;
+  will-change: left, top, transform;
 }
 
 .radarSvg {

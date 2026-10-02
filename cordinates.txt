@@ -103,6 +103,9 @@ x -111.088cm y 1752.144cm z 890.991cm
 Camera002
 x -359.542cm y 1576.75cm z 890.991cm
 
+Bedroom 5 - Hall
+x -357.524cm y 1276.168cm z 890.991cm
+
 Bathroom 5
 
 Camera_Bathroom_001

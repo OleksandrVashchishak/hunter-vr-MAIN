@@ -86,6 +86,8 @@ export function useBabylonTour() {
   const pickMeshesRef = useRef([]);
   const indexRef = useRef(0);
   const [currentIndex, setCurrent] = useState(0);
+  /** Minimap travel pin — set when a hop starts, cleared when settle updates currentIndex. */
+  const [travelViewId, setTravelViewId] = useState(null);
   const isAnimatingRef = useRef(false);
   const lastTouchRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -229,7 +231,9 @@ export function useBabylonTour() {
       }
     }
 
-    return goToNextPoint(
+    if (aliveRef.current) setTravelViewId(viewId);
+
+    await goToNextPoint(
       viewId,
       {
         isAnimatingRef,
@@ -238,7 +242,9 @@ export function useBabylonTour() {
         projectMeshesRef,
         indexRef,
         setCurrent: (value) => {
-          if (aliveRef.current) setCurrent(value);
+          if (!aliveRef.current) return;
+          setCurrent(value);
+          setTravelViewId(null);
         },
         hidePanoramsRef,
         yawDegreesRef,
@@ -246,6 +252,11 @@ export function useBabylonTour() {
       cubemapCacheRef.current,
       { transition }
     );
+
+    // Early exit (locked / missing view) never calls setCurrent — drop the pin.
+    if (aliveRef.current && !isAnimatingRef.current) {
+      setTravelViewId(null);
+    }
   };
   runGoToRef.current = runGoTo;
 
@@ -767,6 +778,7 @@ export function useBabylonTour() {
     engineRef,
     cameraRef,
     currentIndex,
+    travelViewId,
     loading,
     loadingPercent,
     floorLoading,

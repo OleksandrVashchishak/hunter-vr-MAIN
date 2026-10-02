@@ -101,7 +101,8 @@ export function viewHotspotPos(view) {
 /**
  * Tour viewpoints (coords from cordinates.txt, Max Z-up → Babylon Y-up).
  * Outdoor×3: coords in config, panos not in new-panorams yet.
- * bedroom-4-3: no dedicated modeler cam — midpoint of Bedroom 4.
+ * bedroom-4-3: Bathroom 4 cam2 panos (id kept legacy).
+ * bedroom-5-hall: ↔ office-2, office-bathroom-2, primary-hall-2/3.
  * bathroom-4-1: panos missing (coords from Camera_Bathroom_1).
  * mudroom-2: Corona Camera001-2.
  *
@@ -178,7 +179,7 @@ export const CONFIG = {
       id: "primary-hall-2",
       position: { x: -205.162, y: 905.829, z: 1184.943 },
       look: { x: -51.59, y: 905.829, z: 1184.943 },
-      views: ["primary-hall-1", "primary-hall-3" ],
+      views: ["primary-hall-1", "primary-hall-3", "bedroom-5-hall"],
       room: "Primary Hall",
       yaw: 90,
     },
@@ -186,7 +187,7 @@ export const CONFIG = {
       id: "primary-hall-3",
       position: { x: -783.491, y: 905.829, z: 1246.964 },
       look: { x: -205.162, y: 905.829, z: 1184.943 },
-      views: ["primary-hall-2", "primary-hall-4"],
+      views: ["primary-hall-2", "primary-hall-4", "bedroom-5-hall"],
       room: "Primary Hall",
       yaw: 90,
     },
@@ -231,6 +232,14 @@ export const CONFIG = {
       yaw: -91,
     },
     {
+      id: "bedroom-5-hall",
+      position: { x: -357.524, y: 890.991, z: 1276.168 },
+      look: { x: -359.542, y: 890.991, z: 1576.75 },
+      views: ["office-2", "office-bathroom-2", "primary-hall-2", "primary-hall-3"],
+      room: "Bedroom 5 Hall",
+      yaw: -91,
+    },
+    {
       id: "office-1",
       position: { x: -111.088, y: 890.991, z: 1752.144 },
       look: { x: -359.542, y: 890.991, z: 1576.75 },
@@ -242,7 +251,7 @@ export const CONFIG = {
       id: "office-2",
       position: { x: -359.542, y: 890.991, z: 1576.75 },
       look: { x: -111.088, y: 890.991, z: 1752.144 },
-      views: ["office-1", "office-bathroom-1", 'office-bathroom-2'],
+      views: ["office-1", "office-bathroom-1", "office-bathroom-2", "bedroom-5-hall"],
       room: "Office",
       yaw: 179,
     },
@@ -258,7 +267,7 @@ export const CONFIG = {
       id: "office-bathroom-2",
       position: { x: -290.145, y: 890.991, z: 1501.488 },
       look: { x: -239.285, y: 890.991, z: 1402.23 },
-      views: ["office-bathroom-1", "office-2"],
+      views: ["office-bathroom-1", "office-2", "bedroom-5-hall"],
       room: "Office Bathroom",
       yaw: -91,
     },

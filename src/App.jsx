@@ -17,6 +17,7 @@ const BabylonViewer = () => {
     engineRef,
     cameraRef,
     currentIndex,
+    travelViewId,
     loading,
     loadingPercent,
     floorLoading,
@@ -86,6 +87,7 @@ const BabylonViewer = () => {
       />
       <Minimap
         currentIndex={currentIndex}
+        travelViewId={travelViewId}
         onSelectRoom={navigateTo}
         cameraRef={cameraRef}
       />

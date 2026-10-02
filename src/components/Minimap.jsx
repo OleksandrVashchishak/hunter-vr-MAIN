@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CONFIG } from "../babylon/config";
 import {
   FLOORS,
@@ -39,8 +39,10 @@ const FLOOR_ASSETS = {
 };
 
 const MOBILE_MQ = "(max-width: 900px)";
+/** Match VR walk (~80 frames @ 60fps) so the pin rides with the hop. */
+const RADAR_TRAVEL_MS = 1300;
 
-const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
+const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
   // Desktop: map open by default. Mobile: closed until WP "Open Plan".
   const [open, setOpen] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -49,10 +51,20 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
   const [floorId, setFloorId] = useState("floor-ii");
   const [trackedViewId, setTrackedViewId] = useState(null);
   const radarRef = useRef(null);
+  const radarFloorRef = useRef(null);
+  const radarPosRef = useRef(null);
+  const svgHostRef = useRef(null);
+  const onSelectRoomRef = useRef(onSelectRoom);
+  onSelectRoomRef.current = onSelectRoom;
 
   const currentView = CONFIG.views[currentIndex];
-  const currentViewId = currentView?.id;
-  const currentRoomName = currentView?.room;
+  const travelView = travelViewId
+    ? CONFIG.views.find((view) => view.id === travelViewId)
+    : null;
+  // Prefer in-flight destination so the pin starts moving with the VR hop.
+  const displayView = travelView || currentView;
+  const displayViewId = displayView?.id;
+  const displayRoomName = displayView?.room;
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_MQ);
@@ -84,16 +96,67 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
   }, []);
 
   // Sync tab when panorama room changes (React "adjust state during render")
-  if (currentViewId !== trackedViewId) {
-    setTrackedViewId(currentViewId);
-    const match = findFloorForViewId(currentViewId, currentRoomName);
+  if (displayViewId !== trackedViewId) {
+    setTrackedViewId(displayViewId);
+    const match = findFloorForViewId(displayViewId, displayRoomName);
     if (match) setFloorId(match.id);
   }
 
   const floor = FLOORS.find((item) => item.id === floorId) || FLOORS[1];
   const assets = FLOOR_ASSETS[floor.id];
-  const rooms = getMinimapRooms(floor);
-  const active = getActiveHotspot(floor, currentViewId, currentRoomName);
+  const active = getActiveHotspot(floor, displayViewId, displayRoomName);
+
+  // Slide radar between hotspots on the same floor; snap on floor change / first paint.
+  useLayoutEffect(() => {
+    if (!open) {
+      radarPosRef.current = null;
+      radarFloorRef.current = null;
+      return;
+    }
+
+    const el = radarRef.current;
+    if (!el || !active) {
+      radarPosRef.current = null;
+      radarFloorRef.current = null;
+      return;
+    }
+
+    const nextLeft = (active.x / floor.viewBox.w) * 100;
+    const nextTop = (active.y / floor.viewBox.h) * 100;
+    const prev = radarPosRef.current;
+    const sameFloor = radarFloorRef.current === floor.id;
+
+    // Same target (e.g. travelViewId cleared after settle) — don't touch styles
+    // or we kill an in-flight CSS transition by setting transition: none.
+    if (
+      prev &&
+      sameFloor &&
+      Math.abs(prev.x - nextLeft) <= 0.01 &&
+      Math.abs(prev.y - nextTop) <= 0.01
+    ) {
+      return;
+    }
+
+    const shouldAnimate = Boolean(sameFloor && prev);
+
+    if (shouldAnimate) {
+      el.style.transition = `left ${RADAR_TRAVEL_MS}ms cubic-bezier(0.65, 0, 0.35, 1), top ${RADAR_TRAVEL_MS}ms cubic-bezier(0.65, 0, 0.35, 1)`;
+    } else {
+      el.style.transition = "none";
+    }
+
+    el.style.left = `${nextLeft}%`;
+    el.style.top = `${nextTop}%`;
+    radarPosRef.current = { x: nextLeft, y: nextTop };
+    radarFloorRef.current = floor.id;
+  }, [
+    open,
+    active?.x,
+    active?.y,
+    floor.id,
+    floor.viewBox.h,
+    floor.viewBox.w,
+  ]);
 
   // Rotate radar with camera yaw (no React re-renders)
   useEffect(() => {
@@ -115,6 +178,56 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
   }, [cameraRef, active, open]);
+
+  // Wire hover + click on SVG marker rings (concentric with dots — no HTML overlay).
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const host = svgHostRef.current;
+    const svg = host?.querySelector("svg");
+    if (!svg) return undefined;
+
+    const floorRooms = getMinimapRooms(floor);
+    const circles = [...svg.querySelectorAll("circle")];
+    const cleanups = [];
+
+    for (let i = 0; i < circles.length; i += 2) {
+      const ring = circles[i];
+      const dot = circles[i + 1];
+      const room = floorRooms[i / 2];
+      if (!ring || !room?.viewId) continue;
+
+      // White fill sits above the ring in DOM — let events pass through to the ring.
+      if (dot) dot.style.pointerEvents = "none";
+
+      ring.classList.add(styles.hotspotRing);
+      ring.setAttribute("role", "button");
+      ring.setAttribute("tabindex", "0");
+      ring.setAttribute("aria-label", room.shortLabel || room.label || "Room");
+
+      const go = () => onSelectRoomRef.current?.(room.viewId);
+      const onKey = (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          go();
+        }
+      };
+
+      ring.addEventListener("click", go);
+      ring.addEventListener("keydown", onKey);
+      cleanups.push(() => {
+        ring.removeEventListener("click", go);
+        ring.removeEventListener("keydown", onKey);
+        ring.classList.remove(styles.hotspotRing);
+        ring.removeAttribute("role");
+        ring.removeAttribute("tabindex");
+        ring.removeAttribute("aria-label");
+        if (dot) dot.style.pointerEvents = "";
+      });
+    }
+
+    return () => cleanups.forEach((fn) => fn());
+  }, [open, floor, assets.svg]);
 
   return (
     <div className={styles.root}>
@@ -154,10 +267,6 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
               <div
                 ref={radarRef}
                 className={styles.radar}
-                style={{
-                  left: `${(active.x / floor.viewBox.w) * 100}%`,
-                  top: `${(active.y / floor.viewBox.h) * 100}%`,
-                }}
                 aria-hidden
               >
                 <svg className={styles.radarSvg} viewBox="0 0 100 100">
@@ -178,29 +287,10 @@ const Minimap = ({ currentIndex, onSelectRoom, cameraRef }) => {
             )}
 
             <div
+              ref={svgHostRef}
               className={styles.markersSvg}
               dangerouslySetInnerHTML={{ __html: assets.svg }}
-              aria-hidden
             />
-
-            {rooms.map((room, index) => {
-              const point = floor.hotspots[index];
-              if (!point || !room.viewId) return null;
-              const [x, y] = point;
-              return (
-                <button
-                  key={room.id}
-                  type="button"
-                  className={styles.hotspot}
-                  style={{
-                    left: `${(x / floor.viewBox.w) * 100}%`,
-                    top: `${(y / floor.viewBox.h) * 100}%`,
-                  }}
-                  aria-label={room.label}
-                  onClick={() => onSelectRoom?.(room.viewId)}
-                />
-              );
-            })}
           </div>
         </div>
       )}
