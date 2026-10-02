@@ -332,11 +332,17 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef, onEditChan
     applyCursor();
   });
 
-  function placeOnFloor(root, view) {
+  function wantsBigHotspot(view, fromView) {
+    if (view.bigHotspot) return true;
+    const neighbors = fromView?.bigNeighborHotspots;
+    return Array.isArray(neighbors) && neighbors.includes(view.id);
+  }
+
+  function placeOnFloor(root, view, big) {
     const p = worldPos(markerSource(view));
 
     // Floating sphere: use config Y as-is (no floor snap).
-    if (view.bigHotspot) {
+    if (big) {
       root.position.set(p.x, p.y, p.z);
       return;
     }
@@ -354,12 +360,23 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef, onEditChan
     root.position.set(p.x, y, p.z);
   }
 
-  function ensureHotspot(view) {
+  function disposeHotspotEntry(entry) {
+    entry.button.dispose();
+    entry.wave.dispose();
+    entry.hitMesh.dispose();
+    entry.buttonMat.dispose();
+    entry.root.dispose();
+    hotspotsByActor.delete(entry.viewId);
+  }
+
+  function ensureHotspot(view, big) {
     let entry = hotspotsByActor.get(view.id);
-    if (entry) return entry;
+    if (entry) {
+      if (entry.big === big) return entry;
+      disposeHotspotEntry(entry);
+    }
 
     const locked = !!view.locked;
-    const big = !!view.bigHotspot;
     const root = new TransformNode(`hotspot_root_${view.id}`, scene);
     root.setEnabled(false);
 
@@ -480,12 +497,14 @@ export function createFloorHotspots(scene, { getPickMeshes, hoverRef, onEditChan
             CONFIG.views.map((v) => v.id).filter((id) => id !== currentActor)
           );
 
-    // Place once on create — re-raycasting every room change stalls the frame
-    // (full GLB pick mesh list × every view).
+    // Place once on create / style change — re-raycasting every room change stalls
+    // the frame (full GLB pick mesh list × every view).
     for (const view of CONFIG.views) {
-      const isNew = !hotspotsByActor.has(view.id);
-      const entry = ensureHotspot(view);
-      if (isNew) placeOnFloor(entry.root, view);
+      const big = wantsBigHotspot(view, curr);
+      const prev = hotspotsByActor.get(view.id);
+      const needsPlace = !prev || prev.big !== big;
+      const entry = ensureHotspot(view, big);
+      if (needsPlace) placeOnFloor(entry.root, view, big);
     }
 
     syncWantVisible();

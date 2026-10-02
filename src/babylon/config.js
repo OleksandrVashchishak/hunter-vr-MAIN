@@ -113,6 +113,8 @@ export function viewHotspotPos(view) {
  * (same Max→Bab space). Default = camera. Tune via Hotspot edit in toolbar.
  * Optional: `bigHotspot: true` — floating pulsating sphere at `hotspot`/`position`
  * (no floor snap; Y stays as config). Use for hard-to-see spots (stairs, voids).
+ * Optional: `bigNeighborHotspots: ["view-id"]` — while standing on this view, those
+ * neighbor markers render as big spheres (even if the neighbor has no `bigHotspot`).
  * Optional: `locked: true` — show gray floor hotspot, no click / no navigate.
  */
 export const CONFIG = {
@@ -396,6 +398,7 @@ export const CONFIG = {
       views: ['stair-foyer-3', 'stair-foyer-1', 'entry-hall-1'],
       room: "Stair Case",
       bigHotspot: true,
+      bigNeighborHotspots: ["entry-hall-1"],
       hotspot: { x: -774.5, y: 320, z: 1476.864 },
     },
     {
@@ -546,7 +549,7 @@ export const CONFIG = {
       id: "sauna-3",
       position: { x: -353.943, y: 182.723, z: 1766.893 },
       look: { x: -134.256, y: 182.723, z: 1794.043 },
-      views: ["sauna-1", "sauna-2", "wellness-2"],
+      views: ["sauna-1", "sauna-2", "wellness-2", "massage-2"],
       room: "Sauna",
       yaw: 170,
     },
@@ -562,7 +565,7 @@ export const CONFIG = {
       id: "massage-2",
       position: { x: -309.749, y: 152.002, z: 1467.755 },
       look: { x: -137.001, y: 152.002, z: 1581.067 },
-      views: ["massage-1", "wellness-2"],
+      views: ["massage-1", "wellness-2" ,'sauna-3'],
       room: "Massage Room",
       yaw: 90,
       hotspot: { x: -354.22, y: 152.002, z: 1464.788 },
@@ -573,7 +576,7 @@ export const CONFIG = {
       look: { x: -199.215, y: 103.285, z: 2071.556 },
       views: ['bedroom-2-2', 'bathroom-2-2'],
       room: "Bedroom 2",
-      yaw: -90,
+      yaw: -90, 
     },
     {
       id: "bedroom-2-2",
