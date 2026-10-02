@@ -344,7 +344,7 @@ export const CONFIG = {
       id: "entry-hall-2",
       position: { x: -1183.333, y: 555.647, z: 1135.721 },
       look: { x: -774.5, y: 555.647, z: 1157.144 },
-      views: ["entry-hall-1", "entry-hall-3", "main-powder", "bedroom-3-2", "bedroom-3-3"],
+      views: ["entry-hall-1", "main-powder", "bedroom-3-2", "bedroom-3-3"],
       room: "Entry Hall",
       yaw: 90,
     },
@@ -411,7 +411,7 @@ export const CONFIG = {
       look: { x: -1403.273, y: 555.647, z: 1397.857 },
       views: ["entry-hall-2", "bedroom-3-2", "bathroom-3-2"],
       room: "Bedroom 3",
-      yaw: -85,
+      yaw: 180,
     },
     {
       id: "bathroom-3-1",
