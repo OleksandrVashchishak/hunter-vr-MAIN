@@ -112,17 +112,20 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
 
     // Model-only view: fly camera, leave GLB materials alone.
     if (hidePanoramsRef?.current) {
-      let animProgress = 0;
       animationStarted = true;
-      const observer = scene.onBeforeRenderObservable.add(() => {
-        animProgress++;
-        const t = animProgress / MODEL_ANIM_FRAMES;
-        camera.position = Vector3.Lerp(from, to, easeInOutCubic(t));
-        if (animProgress >= MODEL_ANIM_FRAMES) {
-          scene.onBeforeRenderObservable.remove(observer);
-          setCurrent(nextIndex);
-          isAnimatingRef.current = false;
-        }
+      await new Promise((resolve) => {
+        let animProgress = 0;
+        const observer = scene.onBeforeRenderObservable.add(() => {
+          animProgress++;
+          const t = animProgress / MODEL_ANIM_FRAMES;
+          camera.position = Vector3.Lerp(from, to, easeInOutCubic(t));
+          if (animProgress >= MODEL_ANIM_FRAMES) {
+            scene.onBeforeRenderObservable.remove(observer);
+            setCurrent(nextIndex);
+            isAnimatingRef.current = false;
+            resolve();
+          }
+        });
       });
       return;
     }
@@ -154,44 +157,49 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
     // UI jumps (select / minimap) and no-model mode: blur teleport, no wall-walk.
     if (transition === "blur" || !USE_MODEL) {
       animationStarted = true;
-      runBlurTransition({
-        scene,
-        camera,
-        projectMeshesRef,
-        nextCubemap,
-        nextPos,
-        nextYaw,
-        nextIndex,
-        next,
-        setCurrent,
-        isAnimatingRef,
-        cubemapCache,
+      await new Promise((resolve) => {
+        runBlurTransition({
+          scene,
+          camera,
+          projectMeshesRef,
+          nextCubemap,
+          nextPos,
+          nextYaw,
+          nextIndex,
+          next,
+          setCurrent,
+          isAnimatingRef,
+          cubemapCache,
+          onDone: resolve,
+        });
       });
       return;
     }
 
-    let animProgress = 0;
     animationStarted = true;
     const itemsWalk = projectMeshesRef.current;
+    await new Promise((resolve) => {
+      let animProgress = 0;
+      const observer = scene.onBeforeRenderObservable.add(() => {
+        animProgress++;
+        const t = animProgress / MODEL_ANIM_FRAMES;
+        const eased = easeInOutCubic(t);
 
-    const observer = scene.onBeforeRenderObservable.add(() => {
-      animProgress++;
-      const t = animProgress / MODEL_ANIM_FRAMES;
-      const eased = easeInOutCubic(t);
+        camera.position = Vector3.Lerp(from, to, eased);
 
-      camera.position = Vector3.Lerp(from, to, eased);
+        for (let i = 0; i < itemsWalk.length; i++) {
+          updateMaterialProjection(itemsWalk[i].material, currPos, nextPos, eased);
+        }
 
-      for (let i = 0; i < itemsWalk.length; i++) {
-        updateMaterialProjection(itemsWalk[i].material, currPos, nextPos, eased);
-      }
-
-      if (animProgress >= MODEL_ANIM_FRAMES) {
-        scene.onBeforeRenderObservable.remove(observer);
-        settleProjectionItems(itemsWalk, nextCubemap, nextPos, nextYaw, next);
-        setCurrent(nextIndex);
-        settleCubemapCache(cubemapCache, next);
-        isAnimatingRef.current = false;
-      }
+        if (animProgress >= MODEL_ANIM_FRAMES) {
+          scene.onBeforeRenderObservable.remove(observer);
+          settleProjectionItems(itemsWalk, nextCubemap, nextPos, nextYaw, next);
+          setCurrent(nextIndex);
+          settleCubemapCache(cubemapCache, next);
+          isAnimatingRef.current = false;
+          resolve();
+        }
+      });
     });
   } catch (error) {
     console.error("[goToNextPoint]", error);
@@ -224,6 +232,7 @@ function runBlurTransition({
   setCurrent,
   isAnimatingRef,
   cubemapCache,
+  onDone,
 }) {
   let animProgress = 0;
   let swapped = false;
@@ -257,6 +266,7 @@ function runBlurTransition({
       scene.onBeforeRenderObservable.remove(observer);
       clearCanvasBlur(scene);
       isAnimatingRef.current = false;
+      onDone?.();
     }
   });
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CONFIG } from "../babylon/config";
+import { easeInOutCubic } from "../babylon/easing";
 import {
   FLOORS,
   findFloorForViewId,
@@ -52,7 +53,10 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
   const [trackedViewId, setTrackedViewId] = useState(null);
   const radarRef = useRef(null);
   const radarFloorRef = useRef(null);
-  const radarPosRef = useRef(null);
+  /** Last painted % position — kept across brief active=null frames. */
+  const visualPosRef = useRef(null);
+  /** In-flight lerp: { fromX, fromY, toX, toY, start, duration }. */
+  const animRef = useRef(null);
   const svgHostRef = useRef(null);
   const onSelectRoomRef = useRef(onSelectRoom);
   onSelectRoomRef.current = onSelectRoom;
@@ -104,50 +108,46 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
 
   const floor = FLOORS.find((item) => item.id === floorId) || FLOORS[1];
   const assets = FLOOR_ASSETS[floor.id];
+  const rooms = getMinimapRooms(floor);
   const active = getActiveHotspot(floor, displayViewId, displayRoomName);
 
-  // Slide radar between hotspots on the same floor; snap on floor change / first paint.
+  // Queue radar travel (RAF loop below paints it — CSS left/top transitions were getting killed).
   useLayoutEffect(() => {
-    if (!open) {
-      radarPosRef.current = null;
-      radarFloorRef.current = null;
-      return;
-    }
-
-    const el = radarRef.current;
-    if (!el || !active) {
-      radarPosRef.current = null;
-      radarFloorRef.current = null;
-      return;
-    }
+    if (!open || !active) return;
 
     const nextLeft = (active.x / floor.viewBox.w) * 100;
     const nextTop = (active.y / floor.viewBox.h) * 100;
-    const prev = radarPosRef.current;
+    const visual = visualPosRef.current;
     const sameFloor = radarFloorRef.current === floor.id;
 
-    // Same target (e.g. travelViewId cleared after settle) — don't touch styles
-    // or we kill an in-flight CSS transition by setting transition: none.
+    if (!visual || !sameFloor) {
+      visualPosRef.current = { x: nextLeft, y: nextTop };
+      animRef.current = null;
+      radarFloorRef.current = floor.id;
+      const el = radarRef.current;
+      if (el) {
+        el.style.left = `${nextLeft}%`;
+        el.style.top = `${nextTop}%`;
+      }
+      return;
+    }
+
     if (
-      prev &&
-      sameFloor &&
-      Math.abs(prev.x - nextLeft) <= 0.01 &&
-      Math.abs(prev.y - nextTop) <= 0.01
+      Math.abs(visual.x - nextLeft) <= 0.01 &&
+      Math.abs(visual.y - nextTop) <= 0.01
     ) {
       return;
     }
 
-    const shouldAnimate = Boolean(sameFloor && prev);
-
-    if (shouldAnimate) {
-      el.style.transition = `left ${RADAR_TRAVEL_MS}ms cubic-bezier(0.65, 0, 0.35, 1), top ${RADAR_TRAVEL_MS}ms cubic-bezier(0.65, 0, 0.35, 1)`;
-    } else {
-      el.style.transition = "none";
-    }
-
-    el.style.left = `${nextLeft}%`;
-    el.style.top = `${nextTop}%`;
-    radarPosRef.current = { x: nextLeft, y: nextTop };
+    // Interrupt in-flight lerp from the current painted spot.
+    animRef.current = {
+      fromX: visual.x,
+      fromY: visual.y,
+      toX: nextLeft,
+      toY: nextTop,
+      start: performance.now(),
+      duration: RADAR_TRAVEL_MS,
+    };
     radarFloorRef.current = floor.id;
   }, [
     open,
@@ -158,28 +158,45 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
     floor.viewBox.w,
   ]);
 
-  // Rotate radar with camera yaw (no React re-renders)
+  // One RAF: lerp pin + rotate with camera yaw (no React re-renders).
   useEffect(() => {
     if (!open) return undefined;
 
     let rafId = 0;
 
-    const tick = () => {
+    const tick = (now) => {
       const el = radarRef.current;
       const camera = cameraRef?.current;
-      if (el && camera?.rotation) {
-        // +180: map north vs Babylon yaw; flipped sign = horizontal mirror
-        const deg = (camera.rotation.y * 180) / Math.PI + 180;
-        el.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
+      if (el) {
+        const anim = animRef.current;
+        if (anim) {
+          const t = Math.min(1, (now - anim.start) / anim.duration);
+          const e = easeInOutCubic(t);
+          const x = anim.fromX + (anim.toX - anim.fromX) * e;
+          const y = anim.fromY + (anim.toY - anim.fromY) * e;
+          visualPosRef.current = { x, y };
+          el.style.left = `${x}%`;
+          el.style.top = `${y}%`;
+          if (t >= 1) animRef.current = null;
+        } else if (visualPosRef.current) {
+          el.style.left = `${visualPosRef.current.x}%`;
+          el.style.top = `${visualPosRef.current.y}%`;
+        }
+
+        if (camera?.rotation) {
+          // +180: map north vs Babylon yaw; flipped sign = horizontal mirror
+          const deg = (camera.rotation.y * 180) / Math.PI + 180;
+          el.style.transform = `translate(-50%, -50%) rotate(${deg}deg)`;
+        }
       }
       rafId = requestAnimationFrame(tick);
     };
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [cameraRef, active, open]);
+  }, [cameraRef, open]);
 
-  // Wire hover + click on SVG marker rings (concentric with dots — no HTML overlay).
+  // Stretch SVG to the markers box (same % space as HTML hit targets) + hover on rings.
   useEffect(() => {
     if (!open) return undefined;
 
@@ -187,47 +204,29 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
     const svg = host?.querySelector("svg");
     if (!svg) return undefined;
 
-    const floorRooms = getMinimapRooms(floor);
-    const circles = [...svg.querySelectorAll("circle")];
-    const cleanups = [];
+    svg.setAttribute("preserveAspectRatio", "none");
 
+    const rings = [];
+    const circles = [...svg.querySelectorAll("circle")];
     for (let i = 0; i < circles.length; i += 2) {
       const ring = circles[i];
-      const dot = circles[i + 1];
-      const room = floorRooms[i / 2];
-      if (!ring || !room?.viewId) continue;
-
-      // White fill sits above the ring in DOM — let events pass through to the ring.
-      if (dot) dot.style.pointerEvents = "none";
-
+      if (!ring) continue;
       ring.classList.add(styles.hotspotRing);
-      ring.setAttribute("role", "button");
-      ring.setAttribute("tabindex", "0");
-      ring.setAttribute("aria-label", room.shortLabel || room.label || "Room");
-
-      const go = () => onSelectRoomRef.current?.(room.viewId);
-      const onKey = (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          go();
-        }
-      };
-
-      ring.addEventListener("click", go);
-      ring.addEventListener("keydown", onKey);
-      cleanups.push(() => {
-        ring.removeEventListener("click", go);
-        ring.removeEventListener("keydown", onKey);
-        ring.classList.remove(styles.hotspotRing);
-        ring.removeAttribute("role");
-        ring.removeAttribute("tabindex");
-        ring.removeAttribute("aria-label");
-        if (dot) dot.style.pointerEvents = "";
-      });
+      rings.push(ring);
     }
 
-    return () => cleanups.forEach((fn) => fn());
+    return () => {
+      rings.forEach((ring) => ring.classList.remove(styles.hotspotRing));
+    };
   }, [open, floor, assets.svg]);
+
+  const setRingHover = (index, on) => {
+    const host = svgHostRef.current;
+    const circles = host?.querySelectorAll("circle");
+    const ring = circles?.[index * 2];
+    if (!ring) return;
+    ring.classList.toggle(styles.hotspotRingActive, on);
+  };
 
   return (
     <div className={styles.root}>
@@ -290,7 +289,31 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
               ref={svgHostRef}
               className={styles.markersSvg}
               dangerouslySetInnerHTML={{ __html: assets.svg }}
+              aria-hidden
             />
+
+            {rooms.map((room, index) => {
+              const point = floor.hotspots[index];
+              if (!point || !room.viewId) return null;
+              const [x, y] = point;
+              return (
+                <button
+                  key={room.id}
+                  type="button"
+                  className={styles.hotspot}
+                  style={{
+                    left: `${(x / floor.viewBox.w) * 100}%`,
+                    top: `${(y / floor.viewBox.h) * 100}%`,
+                  }}
+                  aria-label={room.label}
+                  onClick={() => onSelectRoomRef.current?.(room.viewId)}
+                  onMouseEnter={() => setRingHover(index, true)}
+                  onMouseLeave={() => setRingHover(index, false)}
+                  onFocus={() => setRingHover(index, true)}
+                  onBlur={() => setRingHover(index, false)}
+                />
+              );
+            })}
           </div>
         </div>
       )}

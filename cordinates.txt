@@ -88,6 +88,8 @@ Camera1
 x -1478.81cm y 1195.55cm z 890.991cm
 Camera2
 x -1404.327cm y 1017.223cm z 890.991cm
+Camera3
+x -1244.82cm y 1096.781cm z 890.991cm
 
 Bathroom 4
 

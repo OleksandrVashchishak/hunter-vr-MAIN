@@ -102,6 +102,7 @@ export function viewHotspotPos(view) {
  * Tour viewpoints (coords from cordinates.txt, Max Z-up → Babylon Y-up).
  * Outdoor×3: coords in config, panos not in new-panorams yet.
  * bedroom-4-3: Bathroom 4 cam2 panos (id kept legacy).
+ * bedroom-4-4: Bedroom 4 Camera 3 (↔ primary-hall-4).
  * bedroom-5-hall: ↔ office-2, office-bathroom-2, primary-hall-2/3.
  * bathroom-4-1: panos missing (coords from Camera_Bathroom_1).
  * mudroom-2: Corona Camera001-2.
@@ -195,7 +196,7 @@ export const CONFIG = {
       id: "primary-hall-4",
       position: { x: -1111.076, y: 905.829, z: 1188.22 },
       look: { x: -783.491, y: 905.829, z: 1246.964 },
-      views: ["primary-hall-3"],
+      views: ["primary-hall-3", "bedroom-4-4"],
       room: "Primary Hall",
       yaw: 90,
     },
@@ -211,7 +212,7 @@ export const CONFIG = {
       id: "bedroom-4-2",
       position: { x: -1404.327, y: 890.991, z: 1017.223 },
       look: { x: -1478.81, y: 890.991, z: 1195.55 },
-      views: ["bedroom-4-1"],
+      views: ["bedroom-4-1", "bedroom-4-4"],
       room: "Bedroom 4",
       yaw: -91,
     },
@@ -230,6 +231,14 @@ export const CONFIG = {
       views: [  'bathroom-4-2', 'bedroom-4-1'],
       room: "Bathroom 4",
       yaw: -91,
+    },
+    {
+      id: "bedroom-4-4",
+      position: { x: -1244.82, y: 890.991, z: 1096.781 },
+      look: { x: -1111.076, y: 905.829, z: 1188.22 },
+      views: ["primary-hall-4",  "bedroom-4-2"],
+      room: "Bedroom 4",
+      yaw: -135,
     },
     {
       id: "bedroom-5-hall",
@@ -562,7 +571,7 @@ export const CONFIG = {
       id: "bedroom-2-1",
       position: { x: 67.275, y: 103.285, z: 2225.562 },
       look: { x: -199.215, y: 103.285, z: 2071.556 },
-      views: ['bedroom-2-2'],
+      views: ['bedroom-2-2', 'bathroom-2-2'],
       room: "Bedroom 2",
       yaw: -90,
     },

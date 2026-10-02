@@ -242,9 +242,7 @@ export function useBabylonTour() {
         projectMeshesRef,
         indexRef,
         setCurrent: (value) => {
-          if (!aliveRef.current) return;
-          setCurrent(value);
-          setTravelViewId(null);
+          if (aliveRef.current) setCurrent(value);
         },
         hidePanoramsRef,
         yawDegreesRef,
@@ -253,10 +251,8 @@ export function useBabylonTour() {
       { transition }
     );
 
-    // Early exit (locked / missing view) never calls setCurrent — drop the pin.
-    if (aliveRef.current && !isAnimatingRef.current) {
-      setTravelViewId(null);
-    }
+    // Keep travel pin until hop fully ends (blur used to clear mid-fade and kill the slide).
+    if (aliveRef.current) setTravelViewId(null);
   };
   runGoToRef.current = runGoTo;
 
