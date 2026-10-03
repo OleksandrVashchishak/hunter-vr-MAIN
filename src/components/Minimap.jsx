@@ -7,6 +7,7 @@ import {
   getActiveHotspot,
   getMinimapRooms,
 } from "../config/floorsConfig";
+import { getMinimapPins } from "../config/minimapProjection";
 import styles from "./Minimap.module.scss";
 import iconClose from "../assets/icons/tutor-close.svg";
 
@@ -116,6 +117,8 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
   const floor = FLOORS.find((item) => item.id === floorId) || FLOORS[1];
   const assets = FLOOR_ASSETS[floor.id];
   const rooms = getMinimapRooms(floor);
+  const pins = getMinimapPins(floor, FLOORS);
+  const minorPins = pins.filter((pin) => !pin.major);
   const active = getActiveHotspot(floor, displayViewId, displayRoomName);
 
   // Queue radar travel (RAF loop below paints it — CSS left/top transitions were getting killed).
@@ -306,6 +309,24 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
               aria-hidden
             />
 
+            {/* Minor pins — projected from config XYZ; no labels */}
+            {minorPins.map((pin) => (
+              <button
+                key={pin.viewId}
+                type="button"
+                className={`${styles.hotspot} ${styles.hotspotMinor}${
+                  active?.viewId === pin.viewId ? ` ${styles.hotspotMinorActive}` : ""
+                }`}
+                style={{
+                  left: `${(pin.x / floor.viewBox.w) * 100}%`,
+                  top: `${(pin.y / floor.viewBox.h) * 100}%`,
+                }}
+                aria-label={pin.room || pin.viewId}
+                onClick={() => onSelectRoomRef.current?.(pin.viewId)}
+              />
+            ))}
+
+            {/* Major pins — designer SVG markers + invisible hit targets */}
             {rooms.map((room, index) => {
               const point = floor.hotspots[index];
               if (!point || !room.viewId) return null;

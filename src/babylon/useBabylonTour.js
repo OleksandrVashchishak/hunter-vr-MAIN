@@ -158,8 +158,8 @@ export function useBabylonTour() {
   };
 
   /**
-   * Load every panorama on the view's floor. Shows a light loader on first visit
-   * / floor change; drops the previous floor from VRAM.
+   * Load every panorama on the view's floor. Shows a light loader only on a real
+   * floor switch — not while the same floor is still warming in the background.
    */
   const ensureFloorLoaded = async (view, { showLoader = true } = {}) => {
     if (HIDE_PANORAMS || !view) return { floorId: null, changed: false };
@@ -171,11 +171,14 @@ export function useBabylonTour() {
     }
 
     const floor = resolveFloorForView(view);
-    const willChange = !!floor && loadedFloorIdRef.current !== floor.id;
-    const needsLoader =
-      showLoader && (willChange || loadedFloorIdRef.current == null);
-    const gen = ++floorLoadGenRef.current;
     const currentView = CONFIG.views[indexRef.current];
+    const currentFloorId = resolveFloorForView(currentView)?.id ?? null;
+    // Prefer the already-committed floor; fall back to where the camera is now
+    // so a mid-warm neighbor click does not look like a floor change.
+    const knownFloorId = loadedFloorIdRef.current ?? currentFloorId;
+    const isFloorSwitch = !!floor && knownFloorId !== floor.id;
+    const needsLoader = showLoader && isFloorSwitch;
+    const gen = ++floorLoadGenRef.current;
     const displayKey =
       currentView && currentView.id !== view.id ? cubemapKey(currentView) : null;
 
@@ -220,14 +223,21 @@ export function useBabylonTour() {
     if (!HIDE_PANORAMS) {
       const cache = cubemapCacheRef.current;
       const nextKey = cubemapKey(next);
+      const nextFloorId = resolveFloorForView(next)?.id ?? null;
+      const currentFloorId =
+        resolveFloorForView(CONFIG.views[indexRef.current])?.id ?? null;
+      const knownFloorId = loadedFloorIdRef.current ?? currentFloorId;
       const floorReady =
-        !!loadedFloorIdRef.current &&
-        resolveFloorForView(next)?.id === loadedFloorIdRef.current &&
+        !!knownFloorId &&
+        nextFloorId === knownFloorId &&
         !!cache?.peek(nextKey);
 
       // Same floor + already warm → skip ensureFloor (no await / no loader flash).
+      // Same floor but still warming → await silently (no FloorLoader).
       if (!floorReady) {
-        await ensureFloorLoaded(next, { showLoader: true });
+        await ensureFloorLoaded(next, {
+          showLoader: !!nextFloorId && nextFloorId !== knownFloorId,
+        });
         if (!aliveRef.current) return;
       }
     }

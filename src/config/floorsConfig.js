@@ -2,8 +2,12 @@
  * Shared floor / room catalogue.
  * - listOrder → Floor / Room selectors (RoomSelector)
  * - minimapOrder + hotspots → SVG Navigation Button indices (Minimap)
+ * - secondary panoramas → projected minor pins (see minimapProjection.js)
  * Labels: `label` for list, `shortLabel` for minimap (falls back to label).
  */
+
+import { CONFIG } from "../babylon/config.js";
+import { getMinimapPins, projectViewOnFloor } from "./minimapProjection.js";
 
 export const FLOORS = [
   {
@@ -261,13 +265,27 @@ export function findFloorForViewId(viewId, roomLabel) {
 
 export function getActiveHotspot(floor, viewId, roomLabel) {
   if (!floor || (!viewId && !roomLabel)) return null;
+
+  const view =
+    (viewId && CONFIG.views.find((item) => item.id === viewId)) ||
+    (roomLabel && CONFIG.views.find((item) => item.room === roomLabel)) ||
+    null;
+
+  if (view) {
+    const projected = projectViewOnFloor(floor, view, FLOORS);
+    if (projected) {
+      const pins = getMinimapPins(floor, FLOORS);
+      const index = pins.findIndex((pin) => pin.viewId === view.id);
+      return { index, x: projected.x, y: projected.y, viewId: view.id };
+    }
+  }
+
+  // Fallback: labeled room pin (legacy room-label snap).
   const rooms = getMinimapRooms(floor);
   let index = viewId ? rooms.findIndex((room) => room.viewId === viewId) : -1;
-  // Secondary panoramas share a room label but not the entry viewId.
   if (index < 0 && roomLabel) {
     index = floor.minimapOrder.findIndex((id) => floor.rooms[id]?.label === roomLabel);
   }
-  // Floor III hall corridor: 1–2 → Primary Hall pin, 3–4 → Top Landing pin.
   if (index < 0 && viewId?.startsWith("primary-hall-")) {
     const n = Number(String(viewId).split("-").pop());
     const pinId = Number.isFinite(n) && n >= 3 ? "top-landing" : "primary-hall";
@@ -277,5 +295,5 @@ export function getActiveHotspot(floor, viewId, roomLabel) {
   const point = floor.hotspots[index];
   if (!point) return null;
   const [x, y] = point;
-  return { index, x, y };
+  return { index, x, y, viewId: rooms[index]?.viewId || null };
 }

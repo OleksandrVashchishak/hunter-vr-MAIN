@@ -192,6 +192,30 @@ $font: "ABC Areal", sans-serif;
   cursor: pointer;
 }
 
+/* Secondary panoramas — smaller, unlabeled, from config XYZ projection. */
+.hotspotMinor {
+  z-index: 1;
+  width: 9px;
+  height: 9px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: #fff;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45);
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+}
+
+.hotspotMinorActive {
+  background: #fff;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.55),
+    0 0 10px rgba(255, 255, 255, 0.55);
+}
+
 /* SVG ring fill — toggled from hotspot mouse/focus (stays concentric). */
 .hotspotRing {
   fill: transparent;
