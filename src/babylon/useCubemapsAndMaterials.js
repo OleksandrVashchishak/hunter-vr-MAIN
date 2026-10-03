@@ -43,6 +43,7 @@ function bindBaseFromOriginal(shaderMaterial, originalMaterial, scene) {
 /**
  * Soft cap on resident cubemaps in VRAM.
  * Sized for a full floor (~24–26 keys on Floor I) so pin(floor) does not fight LRU.
+ * Mobile uses a smaller cap via getTourGpuProfile().
  */
 export const CUBEMAP_CACHE_MAX = 32;
 
@@ -51,9 +52,23 @@ export const CUBEMAP_CACHE_MAX = 32;
  * Pin keys that are bound to materials (current floor / transition targets)
  * so they are never disposed mid-frame.
  *
- * @param {{ maxSize?: number, loadTexture?: (scene: unknown, name: string) => Promise<import('@babylonjs/core').CubeTexture> }} [options]
+ * @param {{
+ *   maxSize?: number,
+ *   cubemapPath?: string,
+ *   fallbackCubemapPath?: string | null,
+ *   anisotropicFilteringLevel?: number,
+ *   generateMipMaps?: boolean,
+ *   loadTexture?: (scene: unknown, name: string) => Promise<import('@babylonjs/core').CubeTexture>
+ * }} [options]
  */
-export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } = {}) {
+export function createCubemapCache({
+  maxSize = CUBEMAP_CACHE_MAX,
+  cubemapPath = "panorams",
+  fallbackCubemapPath = null,
+  anisotropicFilteringLevel = 16,
+  generateMipMaps = true,
+  loadTexture,
+} = {}) {
   const entries = new Map();
   const pendingLoads = Object.create(null);
   let pinned = new Set();
@@ -128,8 +143,7 @@ export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } 
     evictIfNeeded();
   }
 
-  function loadWithBabylon(scene, name) {
-    const imgPath = "panorams";
+  function loadCubemapFromPath(scene, name, imgPath) {
     const root = import.meta.env.BASE_URL;
 
     return new Promise((resolve, reject) => {
@@ -137,7 +151,7 @@ export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } 
         `${root}${imgPath}/${name}`,
         scene,
         ["_px.jpg", "_py.jpg", "_pz.jpg", "_nx.jpg", "_ny.jpg", "_nz.jpg"],
-        false,
+        !generateMipMaps,
         null,
         () => {
           if (disposed) {
@@ -150,10 +164,14 @@ export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } 
             return;
           }
 
-          cubemap.generateMipMaps = true;
+          cubemap.generateMipMaps = generateMipMaps;
           cubemap.gammaSpace = true;
-          cubemap.anisotropicFilteringLevel = 16;
-          cubemap.updateSamplingMode(Texture.ANISOTROPIC_SAMPLINGMODE);
+          cubemap.anisotropicFilteringLevel = anisotropicFilteringLevel;
+          cubemap.updateSamplingMode(
+            generateMipMaps
+              ? Texture.ANISOTROPIC_SAMPLINGMODE
+              : Texture.BILINEAR_SAMPLINGMODE
+          );
 
           store(name, cubemap);
           resolve(cubemap);
@@ -165,12 +183,24 @@ export function createCubemapCache({ maxSize = CUBEMAP_CACHE_MAX, loadTexture } 
             /* ignore */
           }
           reject(
-            new Error(message || `Failed to load cubemap "${name}"`, {
+            new Error(message || `Failed to load cubemap "${name}" from ${imgPath}`, {
               cause: exception,
             })
           );
         }
       );
+    });
+  }
+
+  function loadWithBabylon(scene, name) {
+    return loadCubemapFromPath(scene, name, cubemapPath).catch((primaryError) => {
+      if (!fallbackCubemapPath || fallbackCubemapPath === cubemapPath) {
+        throw primaryError;
+      }
+      console.warn(
+        `[cubemap] "${name}" missing in ${cubemapPath}, falling back to ${fallbackCubemapPath}`
+      );
+      return loadCubemapFromPath(scene, name, fallbackCubemapPath);
     });
   }
 

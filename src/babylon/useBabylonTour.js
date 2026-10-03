@@ -18,6 +18,7 @@ import {
   updateMaterialProjection,
   viewYawDegrees,
 } from "./useCubemapsAndMaterials";
+import { getTourGpuProfile } from "./helpers/mobileProfile";
 import { ensureFloorCubemaps, resolveFloorForView } from "./floorCubemaps";
 import { pickNextViewFromClick } from "./pickNextViewFromClick";
 import { goToNextPoint } from "./goToNextPoint";
@@ -277,7 +278,14 @@ export function useBabylonTour() {
     registerShaders();
 
     cubemapCacheRef.current?.disposeAll();
-    const cubemapCache = createCubemapCache();
+    const gpuProfile = getTourGpuProfile();
+    const cubemapCache = createCubemapCache({
+      maxSize: gpuProfile.cubemapCacheMax,
+      cubemapPath: gpuProfile.cubemapPath,
+      fallbackCubemapPath: gpuProfile.mobile ? "panorams" : null,
+      anisotropicFilteringLevel: gpuProfile.anisotropicFilteringLevel,
+      generateMipMaps: gpuProfile.generateMipMaps,
+    });
     cubemapCacheRef.current = cubemapCache;
     loadedFloorIdRef.current = null;
     floorLoadGenRef.current += 1;
@@ -321,7 +329,7 @@ export function useBabylonTour() {
         return;
       }
 
-      engine.setHardwareScalingLevel(0.75);
+      engine.setHardwareScalingLevel(gpuProfile.hardwareScalingLevel);
       engine.setTextureFormatToUse(Engine.TEXTUREFORMAT_RGBA);
       engineRef.current = engine;
       const scene = new Scene(engine);

@@ -120,26 +120,26 @@ export function viewHotspotPos(view) {
 export const CONFIG = {
   views: [
     {
-      id: "primary-bedroom-1",
+      id: "primary-bedroom-3",
       position: { x: 534.759, y: 905.829, z: 1254.816 },
       look: { x: 700.073, y: 905.829, z: 1488.588 },
-      views: ["primary-bedroom-2", "primary-bedroom-3", "primary-hall-1"],
+      views: ["primary-bedroom-2", "primary-bedroom-1", "primary-hall-1"],
+      room: "Primary Bedroom",
+      yaw: 90,
+    },
+    {
+      id: "primary-bedroom-1",
+      position: { x: 328.025, y: 905.829, z: 1179.331 },
+      look: { x: 700.073, y: 905.829, z: 1488.588 },
+      views: ["primary-bedroom-3", "primary-bedroom-2", "primary-hall-1", 'closet'],
       room: "Primary Bedroom",
       yaw: 90,
     },
     {
       id: "primary-bedroom-2",
-      position: { x: 328.025, y: 905.829, z: 1179.331 },
-      look: { x: 700.073, y: 905.829, z: 1488.588 },
-      views: ["primary-bedroom-1", "primary-bedroom-3", "primary-hall-1", 'closet'],
-      room: "Primary Bedroom",
-      yaw: 90,
-    },
-    {
-      id: "primary-bedroom-3",
       position: { x: 700.073, y: 905.829, z: 1488.588 },
       look: { x: 534.759, y: 905.829, z: 1254.816 },
-      views: ["primary-bedroom-1", "primary-bedroom-2", "primary-hall-1", "primary-bathroom-2"],
+      views: ["primary-bedroom-1", "primary-bedroom-3"],
       room: "Primary Bedroom",
       yaw: 90,
       hotspot: { x: 720.215, y: 905.829, z: 1416.751 },
