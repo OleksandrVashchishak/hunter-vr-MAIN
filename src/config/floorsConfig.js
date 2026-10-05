@@ -1,8 +1,9 @@
 /**
  * Shared floor / room catalogue.
  * - listOrder → Floor / Room selectors (RoomSelector)
- * - minimapOrder + hotspots → SVG Navigation Button indices (Minimap)
- * - secondary panoramas → projected minor pins (see minimapProjection.js)
+ * - minimapOrder + hotspots → calibrate 3D→SVG projection (minimapProjection)
+ * - rooms.*.labelPos → minimap text position [x, y] in floor viewBox
+ *   (fallback: legacy hotspots[i]; drag via ?editMinimapLabels=1)
  * Labels: `label` for list, `shortLabel` for minimap (falls back to label).
  */
 
@@ -34,8 +35,8 @@ export const FLOORS = [
       "bathroom-1": { label: "Bathroom 1", shortLabel: "Bath 1", viewId: "bathroom-1-1" },
       "bedroom-2": { label: "Bedroom 2", viewId: "bedroom-2-1" },
       "bathroom-2": { label: "Bathroom 2", shortLabel: "Bath 2", viewId: "bathroom-2-1" },
-      "game-room": { label: "Game Room", viewId: "game-room-1" },
-      mudroom: { label: "Mudroom", viewId: "mudroom-1" },
+      "game-room": { label: "Game Room", viewId: "game-room-2" },
+      mudroom: { label: "Mudroom", viewId: "mudroom-2" },
       sauna: { label: "Sauna", viewId: "sauna-1" },
       gym: { label: "Gym", viewId: "gym-1" },
       wellness: { label: "Wellness Area", shortLabel: "Wellness", viewId: "wellness-1" },
@@ -91,18 +92,42 @@ export const FLOORS = [
       [53.955, 59.933],
     ],
     rooms: {
-      entry: { label: "Entry Hall", shortLabel: "Entry", viewId: "entry-hall-1" },
-      dining: { label: "Dining Room", shortLabel: "Dining", viewId: "dining" },
-      kitchen: { label: "Kitchen", viewId: "kitchen" },
-      "living-room": { label: "Living Room", viewId: "living" },
+      entry: {
+        label: "Entry Hall",
+        shortLabel: "Entry",
+        viewId: "entry-hall-1",
+        labelPos: [96.955, 85.933],
+      },
+      dining: {
+        label: "Dining Room",
+        shortLabel: "Dining",
+        viewId: "dining",
+        labelPos: [150.317, 9.909],
+      },
+      kitchen: { label: "Kitchen", viewId: "kitchen", labelPos: [149.955, 111.933] },
+      "living-room": {
+        label: "Living Room",
+        viewId: "living",
+        labelPos: [184.955, 74.933],
+      },
       outdoor: { label: "Outdoor", viewId: "outdoor-1" },
-      "bedroom-3": { label: "Bedroom 3", viewId: "bedroom-3-1" },
-      "bathroom-3": { label: "Bathroom 3", shortLabel: "Bath 3", viewId: "bathroom-3-1" },
-      pool: { label: "Pool", viewId: "outdoor-3" },
+      "bedroom-3": {
+        label: "Bedroom 3",
+        viewId: "bedroom-3-2",
+        labelPos: [9.909, 83.411],
+      },
+      "bathroom-3": {
+        label: "Bathroom 3",
+        shortLabel: "Bath 3",
+        viewId: "bathroom-3-1",
+        labelPos: [53.955, 59.933],
+      },
+      pool: { label: "Pool", viewId: "outdoor-3", labelPos: [259, 33.001] },
       "main-powder": {
         label: "Main Powder Room",
         shortLabel: "Main Powder",
         viewId: "main-powder",
+        labelPos: [43.955, 112.933],
       },
     },
     listOrder: [
@@ -157,11 +182,11 @@ export const FLOORS = [
         viewId: "office-bathroom-1",
       },
       "bedroom-5-hall": {
-        label: "Bedroom 5 Hall",
-        shortLabel: "B5 Hall",
+        label: "Hall",
+        shortLabel: "Hall",
         viewId: "bedroom-5-hall",
       },
-      "bedroom-4": { label: "Bedroom 4", viewId: "bedroom-4-1" },
+      "bedroom-4": { label: "Bedroom 4", viewId: "bedroom-4-2" },
       "bathroom-4": { label: "Bathroom 4", shortLabel: "Bath 4", viewId: "bathroom-4-2" },
       "primary-hall": {
         label: "Primary Hall",
@@ -222,7 +247,7 @@ export function getDefaultRoomViewId(floor) {
   return getListRooms(floor).find((room) => room.viewId)?.viewId || null;
 }
 
-/** Minimap SVG hotspot items (short labels), index-aligned with hotspots[]. */
+/** Minimap labeled rooms (short labels), index-aligned with hotspots[]. */
 export function getMinimapRooms(floor) {
   return floor.minimapOrder
     .map((id) => {
@@ -232,9 +257,50 @@ export function getMinimapRooms(floor) {
         id: room.id,
         label: room.shortLabel || room.label,
         viewId: room.viewId,
+        labelPos: room.labelPos || null,
       };
     })
     .filter(Boolean);
+}
+
+/**
+ * Minimap text labels with resolved SVG coords.
+ * Priority: draft override → room.labelPos → legacy hotspots[i].
+ */
+export function getMinimapLabels(floor, drafts = null) {
+  if (!floor) return [];
+  return floor.minimapOrder
+    .map((roomId, index) => {
+      const room = resolveRoom(floor, roomId);
+      if (!room) return null;
+      const draftKey = `${floor.id}:${roomId}`;
+      const fromDraft = drafts?.[draftKey];
+      const fromRoom = Array.isArray(room.labelPos) ? room.labelPos : null;
+      const fromHotspot = floor.hotspots[index];
+      const point = fromDraft || fromRoom || fromHotspot;
+      if (!point) return null;
+      const [x, y] = point;
+      return {
+        id: roomId,
+        label: room.shortLabel || room.label,
+        viewId: room.viewId || null,
+        x,
+        y,
+        source: fromDraft ? "draft" : fromRoom ? "config" : "hotspot",
+      };
+    })
+    .filter(Boolean);
+}
+
+/** Snippet to paste `labelPos` into floorsConfig rooms for one floor. */
+export function formatMinimapLabelPositions(floor, drafts = null) {
+  if (!floor) return "";
+  const entries = getMinimapLabels(floor, drafts).map((item) => {
+    const x = Math.round(item.x * 1000) / 1000;
+    const y = Math.round(item.y * 1000) / 1000;
+    return `  "${item.id}": [${x}, ${y}], // ${item.label}`;
+  });
+  return `// ${floor.id} — merge as rooms.*.labelPos\n{\n${entries.join("\n")}\n}`;
 }
 
 /** Match room on a floor by entry viewId, or by shared room label (any panorama). */

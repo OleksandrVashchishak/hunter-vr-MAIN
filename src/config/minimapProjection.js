@@ -1,9 +1,9 @@
 /**
  * Project tour view XYZ (config space) onto minimap SVG coords.
  *
- * Labeled pins stay glued to designer hotspot positions.
- * Secondary views are offset from the nearest labeled pin using the
- * linear part of an affine fit (world XZ → SVG xy) from those pins.
+ * Designer hotspot positions are used only to calibrate an affine map
+ * (world XZ → SVG xy). Every pin — labeled majors and secondary minors —
+ * is drawn at the projected config coordinate.
  */
 
 import { CONFIG, viewHotspotPos } from "../babylon/config.js";
@@ -91,17 +91,12 @@ function getFloorTransform(floor) {
   return cached;
 }
 
-function nearestControl(controls, wx, wz) {
-  let best = controls[0];
-  let bestDist = Infinity;
-  for (const control of controls) {
-    const dist = Math.hypot(wx - control.wx, wz - control.wz);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = control;
-    }
-  }
-  return best;
+function clampToViewBox(floor, x, y) {
+  const pad = 3;
+  return {
+    x: Math.min(floor.viewBox.w - pad, Math.max(pad, x)),
+    y: Math.min(floor.viewBox.h - pad, Math.max(pad, y)),
+  };
 }
 
 /** Same ownership rules as findFloorForViewId (exact viewId, else room label). */
@@ -128,10 +123,9 @@ export function projectViewOnFloor(floor, view, floors = []) {
   const world = viewHotspotPos(view);
   if (!world) return null;
 
-  const { controls, a, b, d, e } = getFloorTransform(floor);
+  const { controls, a, b, c, d, e, f } = getFloorTransform(floor);
   if (!controls.length) return null;
 
-  // When floors list omitted, still require room/label membership.
   if (!floors.length) {
     const onFloor =
       Object.values(floor.rooms).some((room) => room.viewId === view.id) ||
@@ -139,31 +133,20 @@ export function projectViewOnFloor(floor, view, floors = []) {
     if (!onFloor) return null;
   }
 
-  const exact = controls.find((control) => control.viewId === view.id);
-  if (exact) {
+  const major = controls.find((control) => control.viewId === view.id);
+  const rawX = a * world.x + b * world.z + c;
+  const rawY = d * world.x + e * world.z + f;
+  const { x, y } = clampToViewBox(floor, rawX, rawY);
+
+  if (major) {
     return {
-      x: exact.sx,
-      y: exact.sy,
+      x,
+      y,
       major: true,
-      roomId: exact.roomId,
-      label: exact.label,
+      roomId: major.roomId,
+      label: major.label,
     };
   }
-
-  // Prefer a labeled pin in the same room so corridor/room clusters stay local.
-  const sameRoom = controls.filter((control) => control.roomLabel === view.room);
-  const anchor = nearestControl(
-    sameRoom.length ? sameRoom : controls,
-    world.x,
-    world.z,
-  );
-  let x = anchor.sx + a * (world.x - anchor.wx) + b * (world.z - anchor.wz);
-  let y = anchor.sy + d * (world.x - anchor.wx) + e * (world.z - anchor.wz);
-
-  // Keep dots on the plan: glass panel clips overflow.
-  const pad = 3;
-  x = Math.min(floor.viewBox.w - pad, Math.max(pad, x));
-  y = Math.min(floor.viewBox.h - pad, Math.max(pad, y));
 
   return {
     x,
@@ -171,13 +154,12 @@ export function projectViewOnFloor(floor, view, floors = []) {
     major: false,
     roomId: null,
     label: null,
-    anchorRoomId: anchor.roomId,
   };
 }
 
 /**
  * Every panorama pin on a floor.
- * `major` = labeled designer pin (minimapOrder entry view).
+ * `major` = labeled entry view from minimapOrder (still projected from XYZ).
  */
 export function getMinimapPins(floor, floors = []) {
   if (!floor) return [];
@@ -201,7 +183,6 @@ export function getMinimapPins(floor, floors = []) {
     });
   }
 
-  // Majors first so hit targets sit above minor dots.
   pins.sort((left, right) => Number(right.major) - Number(left.major));
   return pins;
 }

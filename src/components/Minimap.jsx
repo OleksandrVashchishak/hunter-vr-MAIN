@@ -1,11 +1,12 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CONFIG } from "../babylon/config";
+import { CONFIG, DEV_MODE } from "../babylon/config";
 import { easeInOutCubic } from "../babylon/easing";
 import {
   FLOORS,
   findFloorForViewId,
+  formatMinimapLabelPositions,
   getActiveHotspot,
-  getMinimapRooms,
+  getMinimapLabels,
 } from "../config/floorsConfig";
 import { getMinimapPins } from "../config/minimapProjection";
 import styles from "./Minimap.module.scss";
@@ -15,26 +16,19 @@ import planFloorI from "../assets/minimap/floor-i.png";
 import planFloorII from "../assets/minimap/floor-ii.png";
 import planFloorIII from "../assets/minimap/floor-iii.png";
 
-import svgFloorI from "../assets/minimap/floor-i.svg?raw";
-import svgFloorII from "../assets/minimap/floor-ii.svg?raw";
-import svgFloorIII from "../assets/minimap/floor-iii.svg?raw";
-
 const FLOOR_ASSETS = {
   "floor-i": {
     plan: planFloorI,
-    svg: svgFloorI,
     planClass: styles.planFloorI,
     markersClass: styles.markersFloorI,
   },
   "floor-ii": {
     plan: planFloorII,
-    svg: svgFloorII,
     planClass: styles.planFloorII,
     markersClass: styles.markersFloorII,
   },
   "floor-iii": {
     plan: planFloorIII,
-    svg: svgFloorIII,
     planClass: styles.planFloorIII,
     markersClass: styles.markersFloorIII,
   },
@@ -44,6 +38,11 @@ const MOBILE_MQ = "(max-width: 900px)";
 /** Match VR walk (~80 frames @ 60fps) so the pin rides with the hop. */
 const RADAR_TRAVEL_MS = 1300;
 
+function readLabelEditFlag() {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).has("editMinimapLabels");
+}
+
 const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
   // Desktop: map open by default. Mobile: closed until WP "Open Plan".
   const [open, setOpen] = useState(() => {
@@ -52,6 +51,10 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
   });
   const [floorId, setFloorId] = useState("floor-ii");
   const [trackedViewId, setTrackedViewId] = useState(null);
+  const [labelEdit, setLabelEdit] = useState(readLabelEditFlag);
+  const [labelDrafts, setLabelDrafts] = useState({});
+  const [dragRoomId, setDragRoomId] = useState(null);
+  const [copied, setCopied] = useState(false);
   const radarRef = useRef(null);
   const pingRef = useRef(null);
   const radarFloorRef = useRef(null);
@@ -59,7 +62,8 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
   const visualPosRef = useRef(null);
   /** In-flight lerp: { fromX, fromY, toX, toY, start, duration }. */
   const animRef = useRef(null);
-  const svgHostRef = useRef(null);
+  const markersRef = useRef(null);
+  const dragRef = useRef(null);
 
   const setPingVisible = (on) => {
     const ping = pingRef.current;
@@ -107,6 +111,12 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  useEffect(() => {
+    if (!copied) return undefined;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
+
   // Sync tab when panorama room changes (React "adjust state during render")
   if (displayViewId !== trackedViewId) {
     setTrackedViewId(displayViewId);
@@ -116,10 +126,81 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
 
   const floor = FLOORS.find((item) => item.id === floorId) || FLOORS[1];
   const assets = FLOOR_ASSETS[floor.id];
-  const rooms = getMinimapRooms(floor);
   const pins = getMinimapPins(floor, FLOORS);
+  const majorPins = pins.filter((pin) => pin.major);
   const minorPins = pins.filter((pin) => !pin.major);
+  const labels = getMinimapLabels(floor, labelDrafts);
   const active = getActiveHotspot(floor, displayViewId, displayRoomName);
+
+  const clientToSvg = (clientX, clientY) => {
+    const box = markersRef.current?.getBoundingClientRect();
+    if (!box || box.width <= 0 || box.height <= 0) return null;
+    return {
+      x: ((clientX - box.left) / box.width) * floor.viewBox.w,
+      y: ((clientY - box.top) / box.height) * floor.viewBox.h,
+    };
+  };
+
+  const onLabelPointerDown = (event, roomId) => {
+    if (!labelEdit) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const point = clientToSvg(event.clientX, event.clientY);
+    const label = labels.find((item) => item.id === roomId);
+    if (!point || !label) return;
+    dragRef.current = {
+      roomId,
+      offsetX: label.x - point.x,
+      offsetY: label.y - point.y,
+    };
+    setDragRoomId(roomId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  useEffect(() => {
+    if (!dragRoomId) return undefined;
+
+    const onMove = (event) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const point = clientToSvg(event.clientX, event.clientY);
+      if (!point) return;
+      const x = Math.min(
+        floor.viewBox.w - 2,
+        Math.max(2, point.x + drag.offsetX),
+      );
+      const y = Math.min(
+        floor.viewBox.h - 2,
+        Math.max(2, point.y + drag.offsetY),
+      );
+      const key = `${floor.id}:${drag.roomId}`;
+      setLabelDrafts((prev) => ({ ...prev, [key]: [x, y] }));
+    };
+
+    const onUp = () => {
+      dragRef.current = null;
+      setDragRoomId(null);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [dragRoomId, floor.id, floor.viewBox.h, floor.viewBox.w]);
+
+  const copyLabels = async () => {
+    const text = formatMinimapLabelPositions(floor, labelDrafts);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Queue radar travel (RAF loop below paints it — CSS left/top transitions were getting killed).
   useLayoutEffect(() => {
@@ -211,38 +292,6 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
     return () => cancelAnimationFrame(rafId);
   }, [cameraRef, open]);
 
-  // Stretch SVG to the markers box (same % space as HTML hit targets) + hover on rings.
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const host = svgHostRef.current;
-    const svg = host?.querySelector("svg");
-    if (!svg) return undefined;
-
-    svg.setAttribute("preserveAspectRatio", "none");
-
-    const rings = [];
-    const circles = [...svg.querySelectorAll("circle")];
-    for (let i = 0; i < circles.length; i += 2) {
-      const ring = circles[i];
-      if (!ring) continue;
-      ring.classList.add(styles.hotspotRing);
-      rings.push(ring);
-    }
-
-    return () => {
-      rings.forEach((ring) => ring.classList.remove(styles.hotspotRing));
-    };
-  }, [open, floor, assets.svg]);
-
-  const setRingHover = (index, on) => {
-    const host = svgHostRef.current;
-    const circles = host?.querySelectorAll("circle");
-    const ring = circles?.[index * 2];
-    if (!ring) return;
-    ring.classList.toggle(styles.hotspotRingActive, on);
-  };
-
   return (
     <div className={styles.root}>
       {open && (
@@ -269,6 +318,34 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
             ))}
           </div>
 
+          {DEV_MODE && (
+            <div className={styles.labelEditBar}>
+              <button
+                type="button"
+                className={`${styles.labelEditBtn}${labelEdit ? ` ${styles.labelEditBtnActive}` : ""}`}
+                onClick={() => setLabelEdit((prev) => !prev)}
+              >
+                {labelEdit ? "Done labels" : "Edit labels"}
+              </button>
+              {labelEdit && (
+                <button
+                  type="button"
+                  className={styles.labelEditBtn}
+                  onClick={copyLabels}
+                >
+                  {copied ? "Copied" : "Copy labelPos"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {labelEdit && (
+            <div className={styles.labelEditHint}>
+              Drag labels · Copy → paste <code>labelPos</code> into{" "}
+              <code>floorsConfig</code>
+            </div>
+          )}
+
           <img
             className={`${styles.plan} ${assets.planClass}`}
             src={assets.plan}
@@ -276,7 +353,12 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
             draggable={false}
           />
 
-          <div className={`${styles.markers} ${assets.markersClass}`}>
+          <div
+            ref={markersRef}
+            className={`${styles.markers} ${assets.markersClass}${
+              labelEdit ? ` ${styles.markersEditing}` : ""
+            }`}
+          >
             {active && (
               <div
                 ref={radarRef}
@@ -302,14 +384,7 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
               </div>
             )}
 
-            <div
-              ref={svgHostRef}
-              className={styles.markersSvg}
-              dangerouslySetInnerHTML={{ __html: assets.svg }}
-              aria-hidden
-            />
-
-            {/* Minor pins — projected from config XYZ; no labels */}
+            {/* Pins from config XYZ projection */}
             {minorPins.map((pin) => (
               <button
                 key={pin.viewId}
@@ -322,33 +397,44 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
                   top: `${(pin.y / floor.viewBox.h) * 100}%`,
                 }}
                 aria-label={pin.room || pin.viewId}
+                disabled={labelEdit}
                 onClick={() => onSelectRoomRef.current?.(pin.viewId)}
               />
             ))}
 
-            {/* Major pins — designer SVG markers + invisible hit targets */}
-            {rooms.map((room, index) => {
-              const point = floor.hotspots[index];
-              if (!point || !room.viewId) return null;
-              const [x, y] = point;
-              return (
-                <button
-                  key={room.id}
-                  type="button"
-                  className={styles.hotspot}
-                  style={{
-                    left: `${(x / floor.viewBox.w) * 100}%`,
-                    top: `${(y / floor.viewBox.h) * 100}%`,
-                  }}
-                  aria-label={room.label}
-                  onClick={() => onSelectRoomRef.current?.(room.viewId)}
-                  onMouseEnter={() => setRingHover(index, true)}
-                  onMouseLeave={() => setRingHover(index, false)}
-                  onFocus={() => setRingHover(index, true)}
-                  onBlur={() => setRingHover(index, false)}
-                />
-              );
-            })}
+            {majorPins.map((pin) => (
+              <button
+                key={pin.viewId}
+                type="button"
+                className={`${styles.hotspot} ${styles.hotspotMajor}${
+                  active?.viewId === pin.viewId ? ` ${styles.hotspotMajorActive}` : ""
+                }`}
+                style={{
+                  left: `${(pin.x / floor.viewBox.w) * 100}%`,
+                  top: `${(pin.y / floor.viewBox.h) * 100}%`,
+                }}
+                aria-label={pin.label || pin.room || pin.viewId}
+                disabled={labelEdit}
+                onClick={() => onSelectRoomRef.current?.(pin.viewId)}
+              />
+            ))}
+
+            {/* Room labels — HTML, draggable in edit mode */}
+            {labels.map((item) => (
+              <span
+                key={item.id}
+                className={`${styles.roomLabel}${
+                  labelEdit ? ` ${styles.roomLabelEditable}` : ""
+                }${dragRoomId === item.id ? ` ${styles.roomLabelDragging}` : ""}`}
+                style={{
+                  left: `${(item.x / floor.viewBox.w) * 100}%`,
+                  top: `${(item.y / floor.viewBox.h) * 100}%`,
+                }}
+                onPointerDown={(event) => onLabelPointerDown(event, item.id)}
+              >
+                {item.label}
+              </span>
+            ))}
           </div>
         </div>
       )}

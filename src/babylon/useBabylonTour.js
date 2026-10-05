@@ -9,6 +9,7 @@ import {
   worldPos,
 } from "./config";
 import { createTourEngine, isWebGLInitError } from "./createTourEngine";
+import { createTourPipeline } from "./createTourPipeline";
 import { registerShaders } from "./shaders";
 import {
   createCubemapCache,
@@ -120,6 +121,7 @@ export function useBabylonTour() {
   const removeZoomRef = useRef(null);
   const removeDesktopLookRef = useRef(null);
   const removeTouchRef = useRef(null);
+  const pipelineRef = useRef(null);
   const yawDegreesRef = useRef(yawDegrees);
   const alignModeRef = useRef(false);
   const panoOpacityRef = useRef(1);
@@ -358,6 +360,8 @@ export function useBabylonTour() {
 
       const camera = initCamera(scene, canvas, first);
       cameraRef.current = camera;
+      pipelineRef.current?.dispose();
+      pipelineRef.current = createTourPipeline(scene, camera);
       removeTouchRef.current = attachTouchControls(canvas, camera, lastTouchRef, {
         isBlocked: lookBlocked,
       });
@@ -605,6 +609,8 @@ export function useBabylonTour() {
       removeDesktopLookRef.current = null;
       removeResizeRef.current?.();
       removeResizeRef.current = null;
+      pipelineRef.current?.dispose();
+      pipelineRef.current = null;
       if (engineRef.current) {
         engineRef.current.dispose();
         engineRef.current = null;

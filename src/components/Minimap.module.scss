@@ -178,21 +178,161 @@ $font: "ABC Areal", sans-serif;
   }
 }
 
-/* Invisible HTML hit target — reliable clicks; hover paint lives on SVG ring. */
+.markersEditing {
+  .hotspot {
+    pointer-events: none;
+    opacity: 0.85;
+  }
+}
+
+.labelEditBar {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  z-index: 7;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.labelEditBtn {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-family: $font;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.4);
+  }
+}
+
+.labelEditBtnActive {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.labelEditHint {
+  position: absolute;
+  top: 76px;
+  left: 12px;
+  right: 12px;
+  z-index: 7;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: $font;
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+
+  code {
+    font-size: 10px;
+    opacity: 0.9;
+  }
+}
+
+.roomLabel {
+  position: absolute;
+  z-index: 3;
+  color: #fff;
+  font-family: $font;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.roomLabelEditable {
+  pointer-events: auto;
+  cursor: grab;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.22);
+  outline: 1px dashed rgba(255, 255, 255, 0.45);
+}
+
+.roomLabelDragging {
+  cursor: grabbing;
+  background: rgba(0, 0, 0, 0.4);
+  outline-color: #fff;
+  z-index: 8;
+}
+
+/* Hit target + visual pin (majors / minors share layout). */
 .hotspot {
   position: absolute;
   z-index: 2;
-  width: 24px;
-  height: 24px;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: transparent;
   transform: translate(-50%, -50%);
   cursor: pointer;
+  box-sizing: border-box;
 }
 
-/* Secondary panoramas — smaller, unlabeled, from config XYZ projection. */
+/* Labeled entry views — small filled dot + outer ring (was SVG ellipses). */
+.hotspotMajor {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    background: transparent;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: background 0.15s ease;
+  }
+
+  &:hover,
+  &:focus-visible {
+    &::after {
+      background: rgba(255, 255, 255, 0.12);
+    }
+  }
+}
+
+.hotspotMajorActive {
+  &::after {
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+  }
+}
+
+/* Secondary panoramas — smaller, unlabeled. */
 .hotspotMinor {
   z-index: 1;
   width: 9px;
@@ -214,17 +354,6 @@ $font: "ABC Areal", sans-serif;
   box-shadow:
     0 0 0 2px rgba(255, 255, 255, 0.55),
     0 0 10px rgba(255, 255, 255, 0.55);
-}
-
-/* SVG ring fill — toggled from hotspot mouse/focus (stays concentric). */
-.hotspotRing {
-  fill: transparent;
-  pointer-events: none;
-  transition: fill 0.15s ease;
-}
-
-.hotspotRingActive {
-  fill: rgba(255, 255, 255, 0.12);
 }
 
 .radar {

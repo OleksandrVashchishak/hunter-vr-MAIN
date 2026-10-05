@@ -1,11 +1,14 @@
 import { CONFIG } from "./config";
 import { FLOORS, getDefaultRoomViewId } from "../config/floorsConfig";
 
+/** Default spawn when opening the tour from the main menu (no ?view / ?floor). */
+export const DEFAULT_START_VIEW_ID = "entry-hall-3";
+
 /**
  * Resolve starting panorama index from URL:
  *   ?view=<viewId>  — exact panorama
  *   ?floor=<floorId> — first available room on that floor (floorsConfig)
- * Falls back to views[0].
+ * Falls back to DEFAULT_START_VIEW_ID, then views[0].
  */
 export function resolveStartViewIndex(
   search = typeof window !== "undefined" ? window.location.search : ""
@@ -28,5 +31,6 @@ export function resolveStartViewIndex(
     }
   }
 
-  return 0;
+  const defaultIdx = CONFIG.views.findIndex((v) => v.id === DEFAULT_START_VIEW_ID);
+  return defaultIdx >= 0 ? defaultIdx : 0;
 }
