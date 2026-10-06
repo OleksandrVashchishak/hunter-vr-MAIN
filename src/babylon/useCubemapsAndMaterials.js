@@ -42,8 +42,8 @@ function bindBaseFromOriginal(shaderMaterial, originalMaterial, scene) {
 
 /**
  * Soft cap on resident cubemaps in VRAM.
- * Sized for a full floor (~24–26 keys on Floor I) so pin(floor) does not fight LRU.
- * Mobile uses a smaller cap via getTourGpuProfile().
+ * Desktop: sized for a full floor so pin(floor) does not fight LRU.
+ * Mobile: smaller cap via getTourGpuProfile(); only neighborhood is pinned.
  */
 export const CUBEMAP_CACHE_MAX = 32;
 

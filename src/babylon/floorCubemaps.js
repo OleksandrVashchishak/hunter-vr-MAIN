@@ -68,6 +68,29 @@ export function getCubemapKeysOnFloor(floor) {
   return out;
 }
 
+/** Current view + one-hop neighbors from `view.views` (mobile warm scope). */
+export function getNeighborhoodCubemapKeys(view) {
+  if (!view) return [];
+
+  const byId = new Map(CONFIG.views.map((item) => [item.id, item]));
+  const out = [];
+  const seen = new Set();
+
+  const add = (item) => {
+    if (!item || item.locked) return;
+    const key = cubemapKey(item);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(key);
+  };
+
+  add(view);
+  for (const neighborId of view.views || []) {
+    add(byId.get(neighborId));
+  }
+  return out;
+}
+
 /** Catalogue match, then orphan views discovered via floor graph (Wellness Area). */
 export function resolveFloorForView(view) {
   if (!view) return null;
@@ -80,8 +103,11 @@ export function resolveFloorForView(view) {
 }
 
 /**
- * Load every cubemap on the view's floor. On floor change, drop the previous
- * floor except the still-displayed key (freed after navigate settle).
+ * Warm cubemaps for a view.
+ * - scope "floor" (desktop): every panorama on the floor
+ * - scope "neighborhood" (mobile): current + one-hop neighbors only
+ *
+ * On scope shrink / floor change, drop previous residents except the still-displayed key.
  * @returns {{ floorId: string|null, changed: boolean }}
  */
 export async function ensureFloorCubemaps({
@@ -93,43 +119,68 @@ export async function ensureFloorCubemaps({
   onProgress,
   /** Cubemap still bound to the screen (previous view) — must survive until settle. */
   displayKey = null,
+  /** "floor" | "neighborhood" */
+  scope = "floor",
 }) {
-  const floor = resolveFloorForView(view);
-  if (!floor || !cache || !scene) {
+  if (!view || !cache || !scene) {
     return { floorId: null, changed: false };
   }
 
-  const keys = getCubemapKeysOnFloor(floor);
+  const floor = resolveFloorForView(view);
+  if (scope === "floor" && !floor) {
+    return { floorId: null, changed: false };
+  }
+
+  const keys =
+    scope === "neighborhood"
+      ? getNeighborhoodCubemapKeys(view)
+      : getCubemapKeysOnFloor(floor);
+
+  if (keys.length === 0) {
+    return { floorId: floor?.id ?? null, changed: false };
+  }
+
   const priorityKey = cubemapKey(view);
   const prevFloorId = loadedFloorIdRef.current;
-  const sameFloor = prevFloorId === floor.id;
-  const allResident =
-    sameFloor && keys.length > 0 && keys.every((key) => cache.peek(key));
+  const sameFloor = !!floor && prevFloorId === floor.id;
+  const allResident = keys.every((key) => cache.peek(key));
 
   if (allResident) {
-    cache.pin(keys);
+    const keep = new Set(keys);
+    if (displayKey) keep.add(displayKey);
+    cache.pin([...keep]);
     cache.touch(priorityKey);
-    return { floorId: floor.id, changed: false };
+    if (floor) loadedFloorIdRef.current = floor.id;
+    return { floorId: floor?.id ?? null, changed: false };
   }
 
-  const changed = !sameFloor;
-  if (changed) {
-    // Free previous floor VRAM, but keep whatever is still on screen + target.
-    const protect = [displayKey, priorityKey].filter(Boolean);
-    cache.pin(protect);
-    cache.retainOnly(protect);
+  // Floor mode: free previous floor on switch.
+  // Neighborhood: drop far keys, but keep anything already in the new pocket.
+  const shouldTrim =
+    scope === "neighborhood" || (scope === "floor" && !sameFloor);
+  if (shouldTrim) {
+    const protect = new Set([displayKey, priorityKey].filter(Boolean));
+    for (const key of keys) {
+      if (cache.peek(key)) protect.add(key);
+    }
+    cache.pin([...protect]);
+    cache.retainOnly([...protect]);
   }
 
+  const changed =
+    scope === "floor" ? !sameFloor : !cache.peek(priorityKey);
   const total = keys.length;
   let done = keys.filter((key) => cache.peek(key)).length;
-  onProgress?.({ done, total, floorId: floor.id });
+  onProgress?.({ done, total, floorId: floor?.id ?? null });
 
   // Priority first so the active panorama is never waiting behind the queue.
   if (priorityKey) {
     await cache.get(scene, priorityKey);
-    if (checkAlive && !checkAlive()) return { floorId: floor.id, changed };
+    if (checkAlive && !checkAlive()) {
+      return { floorId: floor?.id ?? null, changed };
+    }
     done = Math.max(done, keys.filter((key) => cache.peek(key)).length);
-    onProgress?.({ done, total, floorId: floor.id });
+    onProgress?.({ done, total, floorId: floor?.id ?? null });
   }
 
   const pinDuringWarm = new Set(keys);
@@ -141,19 +192,25 @@ export async function ensureFloorCubemaps({
     keys,
     checkAlive,
     ({ done: warmDone, total: warmTotal }) => {
-      onProgress?.({ done: warmDone, total: warmTotal, floorId: floor.id });
+      onProgress?.({
+        done: warmDone,
+        total: warmTotal,
+        floorId: floor?.id ?? null,
+      });
     }
   );
 
-  if (checkAlive && !checkAlive()) return { floorId: floor.id, changed };
+  if (checkAlive && !checkAlive()) {
+    return { floorId: floor?.id ?? null, changed };
+  }
 
   // Keep displayKey until goToNextPoint settle swaps materials off it.
   const keep = new Set(keys);
   if (displayKey) keep.add(displayKey);
   cache.pin([...keep]);
   cache.retainOnly([...keep]);
-  loadedFloorIdRef.current = floor.id;
+  if (floor) loadedFloorIdRef.current = floor.id;
 
-  onProgress?.({ done: total, total, floorId: floor.id });
-  return { floorId: floor.id, changed };
+  onProgress?.({ done: total, total, floorId: floor?.id ?? null });
+  return { floorId: floor?.id ?? null, changed };
 }

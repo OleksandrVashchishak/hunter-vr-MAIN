@@ -132,8 +132,8 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
 
     const currKey = cubemapKey(curr);
     const nextKey = cubemapKey(next);
-    // Keep the whole floor pinned — never shrink to curr+next mid-walk
-    // (that used to open the door for LRU eviction of the rest of the floor).
+    // Touch transition pair; pin set is owned by ensureFloorCubemaps
+    // (full floor on desktop, neighborhood on mobile).
     cubemapCache?.touch(currKey);
     cubemapCache?.touch(nextKey);
 

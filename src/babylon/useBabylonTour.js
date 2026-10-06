@@ -160,8 +160,9 @@ export function useBabylonTour() {
   };
 
   /**
-   * Load every panorama on the view's floor. Shows a light loader only on a real
-   * floor switch — not while the same floor is still warming in the background.
+   * Warm cubemaps for a view.
+   * Desktop: whole floor. Mobile: current + one-hop neighbors only.
+   * Loader — floor switch (desktop) or cold target panorama (mobile).
    */
   const ensureFloorLoaded = async (view, { showLoader = true } = {}) => {
     if (HIDE_PANORAMS || !view) return { floorId: null, changed: false };
@@ -172,6 +173,7 @@ export function useBabylonTour() {
       return { floorId: null, changed: false };
     }
 
+    const warmScope = getTourGpuProfile().mobile ? "neighborhood" : "floor";
     const floor = resolveFloorForView(view);
     const currentView = CONFIG.views[indexRef.current];
     const currentFloorId = resolveFloorForView(currentView)?.id ?? null;
@@ -179,7 +181,12 @@ export function useBabylonTour() {
     // so a mid-warm neighbor click does not look like a floor change.
     const knownFloorId = loadedFloorIdRef.current ?? currentFloorId;
     const isFloorSwitch = !!floor && knownFloorId !== floor.id;
-    const needsLoader = showLoader && isFloorSwitch;
+    const targetKey = cubemapKey(view);
+    const needsLoader =
+      showLoader &&
+      (warmScope === "neighborhood"
+        ? !cache.peek(targetKey)
+        : isFloorSwitch);
     const gen = ++floorLoadGenRef.current;
     const displayKey =
       currentView && currentView.id !== view.id ? cubemapKey(currentView) : null;
@@ -197,6 +204,7 @@ export function useBabylonTour() {
         view,
         loadedFloorIdRef,
         displayKey,
+        scope: warmScope,
         checkAlive: () =>
           aliveRef.current &&
           floorLoadGenRef.current === gen &&
@@ -225,22 +233,32 @@ export function useBabylonTour() {
     if (!HIDE_PANORAMS) {
       const cache = cubemapCacheRef.current;
       const nextKey = cubemapKey(next);
-      const nextFloorId = resolveFloorForView(next)?.id ?? null;
-      const currentFloorId =
-        resolveFloorForView(CONFIG.views[indexRef.current])?.id ?? null;
-      const knownFloorId = loadedFloorIdRef.current ?? currentFloorId;
-      const floorReady =
-        !!knownFloorId &&
-        nextFloorId === knownFloorId &&
-        !!cache?.peek(nextKey);
+      const neighborhoodMode = getTourGpuProfile().mobile;
 
-      // Same floor + already warm → skip ensureFloor (no await / no loader flash).
-      // Same floor but still warming → await silently (no FloorLoader).
-      if (!floorReady) {
-        await ensureFloorLoaded(next, {
-          showLoader: !!nextFloorId && nextFloorId !== knownFloorId,
-        });
-        if (!aliveRef.current) return;
+      if (neighborhoodMode) {
+        // Mobile: walk if target is warm; otherwise load target (+ neighbors).
+        if (!cache?.peek(nextKey)) {
+          await ensureFloorLoaded(next, { showLoader: true });
+          if (!aliveRef.current) return;
+        }
+      } else {
+        const nextFloorId = resolveFloorForView(next)?.id ?? null;
+        const currentFloorId =
+          resolveFloorForView(CONFIG.views[indexRef.current])?.id ?? null;
+        const knownFloorId = loadedFloorIdRef.current ?? currentFloorId;
+        const floorReady =
+          !!knownFloorId &&
+          nextFloorId === knownFloorId &&
+          !!cache?.peek(nextKey);
+
+        // Same floor + already warm → skip ensureFloor (no await / no loader flash).
+        // Same floor but still warming → await silently (no FloorLoader).
+        if (!floorReady) {
+          await ensureFloorLoaded(next, {
+            showLoader: !!nextFloorId && nextFloorId !== knownFloorId,
+          });
+          if (!aliveRef.current) return;
+        }
       }
     }
 
@@ -266,6 +284,12 @@ export function useBabylonTour() {
 
     // Keep travel pin until hop fully ends (blur used to clear mid-fade and kill the slide).
     if (aliveRef.current) setTravelViewId(null);
+
+    // Mobile: refresh neighbor pocket + drop the previous displayKey from pins.
+    // Desktop: cheap no-op when the floor is already fully resident.
+    if (!HIDE_PANORAMS && aliveRef.current) {
+      void ensureFloorLoaded(next, { showLoader: false });
+    }
   };
   runGoToRef.current = runGoTo;
 
@@ -348,11 +372,13 @@ export function useBabylonTour() {
       sceneRef.current = scene;
       scene.clearColor = new Color4(0.1, 0.1, 0.15, 1);
       hotspotHoverRef.current = null;
-      cursorApiRef.current = USE_MODEL
-        ? createProjectedCursor(scene, {
-            isOverHotspot: () => !!hotspotHoverRef.current,
-          })
-        : null;
+      // Mobile look = constant touchmoves; projected cursor does full-GLB picks per move.
+      cursorApiRef.current =
+        USE_MODEL && !gpuProfile.mobile
+          ? createProjectedCursor(scene, {
+              isOverHotspot: () => !!hotspotHoverRef.current,
+            })
+          : null;
       const first = CONFIG.views[indexRef.current];
       const firstCubemapKey = cubemapKey(first);
 
@@ -428,8 +454,8 @@ export function useBabylonTour() {
         safeSetPercent(100);
         safeSetLoading(false);
 
-        // First cubemap is up — warm the rest of the floor silently
-        // (main Tutor loader just finished; don't flash FloorLoader).
+        // First cubemap is up — warm the rest silently (whole floor on
+        // desktop, neighbors only on mobile). Don't flash FloorLoader.
         if (!HIDE_PANORAMS) {
           void ensureFloorLoaded(CONFIG.views[indexRef.current], {
             showLoader: false,
