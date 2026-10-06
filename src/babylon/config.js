@@ -525,13 +525,13 @@ export const CONFIG = {
       room: "Gym",
       yaw: 143,
     },
-    // {
-    //   id: "gym-3",
-    //   position: { x: 118.884, y: 151.962, z: 1177.007 },
-    //   look: { x: 232.278, y: 151.962, z: 1376.012 },
-    //   views: ["gym-1", "gym-2", "wellness-1"],
-    //   room: "Gym",
-    // },
+    {
+      id: "gym-3",
+      position: { x: 118.884, y: 151.962, z: 1177.007 },
+      look: { x: 232.278, y: 151.962, z: 1376.012 },
+      views: ["gym-1", "gym-2", "wellness-1"],
+      room: "Gym",
+    },
     {
       id: "wellness-1",
       position: { x: -380.193, y: 152.53, z: 1114.33 },
