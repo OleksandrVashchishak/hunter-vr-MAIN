@@ -98,6 +98,11 @@ export const FLOORS = [
         viewId: "entry-hall-1",
         labelPos: [96.955, 85.933],
       },
+      "stair-case-2": {
+        label: "Upper Stair Case",
+        shortLabel: "Stairs",
+        viewId: "stair-case-2",
+      },
       dining: {
         label: "Dining Room",
         shortLabel: "Dining",
@@ -132,6 +137,7 @@ export const FLOORS = [
     },
     listOrder: [
       "entry",
+      "stair-case-2",
       "dining",
       "kitchen",
       "living-room",
