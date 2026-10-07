@@ -37,6 +37,8 @@ const FLOOR_ASSETS = {
 const MOBILE_MQ = "(max-width: 900px)";
 /** Match VR walk (~80 frames @ 60fps) so the pin rides with the hop. */
 const RADAR_TRAVEL_MS = 1300;
+/** How far past the floor viewBox labels can be dragged in edit mode. */
+const LABEL_DRAG_PAD = 50;
 
 function readLabelEditFlag() {
   if (typeof window === "undefined") return false;
@@ -166,12 +168,12 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
       const point = clientToSvg(event.clientX, event.clientY);
       if (!point) return;
       const x = Math.min(
-        floor.viewBox.w - 2,
-        Math.max(2, point.x + drag.offsetX),
+        floor.viewBox.w + LABEL_DRAG_PAD,
+        Math.max(-LABEL_DRAG_PAD, point.x + drag.offsetX),
       );
       const y = Math.min(
-        floor.viewBox.h - 2,
-        Math.max(2, point.y + drag.offsetY),
+        floor.viewBox.h + LABEL_DRAG_PAD,
+        Math.max(-LABEL_DRAG_PAD, point.y + drag.offsetY),
       );
       const key = `${floor.id}:${drag.roomId}`;
       setLabelDrafts((prev) => ({ ...prev, [key]: [x, y] }));

@@ -31,6 +31,11 @@ import { createFloorHotspots } from "./floorHotspots";
 import { createNoModelScene, createProjectionSkybox, applyViewCageVisibility } from "./noModelScene";
 import { isClick } from "./helpers/isClick";
 import { initCamera } from "./initCamera";
+import {
+  cameraLookYawDegrees,
+  setCameraLookYawDegrees,
+  viewLookYawDegrees,
+} from "./cameraLook";
 import { resolveStartViewIndex } from "./resolveStartView";
 import { initTourRoomAnalytics, syncRoomFromView } from "../analytics/fvAnalytics";
 
@@ -100,11 +105,16 @@ export function useBabylonTour() {
   const [bootId, setBootId] = useState(0);
   const [panoramasVisible, setPanoramasVisible] = useState(!HIDE_PANORAMS);
   const [alignMode, setAlignMode] = useState(false);
+  const [lookMode, setLookMode] = useState(false);
   const [hotspotEditMode, setHotspotEditMode] = useState(false);
   const [hotspotEditSelection, setHotspotEditSelection] = useState(null);
   const [yawDegrees, setYawDegrees] = useState(() =>
     viewYawDegrees(CONFIG.views[0])
   );
+  const [lookYawDegrees, setLookYawDegrees] = useState(() => {
+    const v = CONFIG.views[0];
+    return viewLookYawDegrees(v) ?? 0;
+  });
   const aliveRef = useRef(true);
   const cubemapCacheRef = useRef(null);
   const loadedFloorIdRef = useRef(null);
@@ -120,11 +130,23 @@ export function useBabylonTour() {
   const removeResizeRef = useRef(null);
   const removeZoomRef = useRef(null);
   const removeDesktopLookRef = useRef(null);
+  const desktopLookApiRef = useRef(null);
   const removeTouchRef = useRef(null);
   const pipelineRef = useRef(null);
   const yawDegreesRef = useRef(yawDegrees);
+  const lookYawDegreesRef = useRef(lookYawDegrees);
   const alignModeRef = useRef(false);
+  const lookModeRef = useRef(false);
   const panoOpacityRef = useRef(1);
+
+  const syncLookYawFromCameraOrView = (view) => {
+    // Capture what the user is seeing now; config only before camera exists.
+    const next = cameraRef.current
+      ? cameraLookYawDegrees(cameraRef.current)
+      : viewLookYawDegrees(view) ?? 0;
+    lookYawDegreesRef.current = next;
+    setLookYawDegrees(next);
+  };
 
   useEffect(() => {
     indexRef.current = currentIndex;
@@ -135,12 +157,31 @@ export function useBabylonTour() {
     yawDegreesRef.current = y;
     setYawDegrees(y);
     applyYawToMeshes(y);
+    syncLookYawFromCameraOrView(view);
   }, [currentIndex]);
 
   useEffect(() => {
     const view = CONFIG.views[currentIndex];
     if (view) syncRoomFromView(view);
   }, [currentIndex]);
+
+  // Look mode: keep panel in sync with free mouse/touch look.
+  useEffect(() => {
+    if (!lookMode) return undefined;
+    const scene = sceneRef.current;
+    if (!scene || scene.isDisposed) return undefined;
+
+    const observer = scene.onBeforeRenderObservable.add(() => {
+      const y = cameraLookYawDegrees(cameraRef.current);
+      if (Math.abs(y - lookYawDegreesRef.current) < 0.05) return;
+      lookYawDegreesRef.current = y;
+      setLookYawDegrees(y);
+    });
+
+    return () => {
+      scene.onBeforeRenderObservable.remove(observer);
+    };
+  }, [lookMode]);
 
   const applyYawToMeshes = (yawDeg, yaw2Deg = yawDeg) => {
     for (const item of projectMeshesRef.current) {
@@ -277,6 +318,7 @@ export function useBabylonTour() {
         },
         hidePanoramsRef,
         yawDegreesRef,
+        resetLookVelocity: () => desktopLookApiRef.current?.resetVelocity?.(),
       },
       cubemapCacheRef.current,
       { transition }
@@ -334,16 +376,22 @@ export function useBabylonTour() {
     hidePanoramsRef.current = HIDE_PANORAMS;
     debugLightRef.current = null;
     alignModeRef.current = false;
+    lookModeRef.current = false;
     panoOpacityRef.current = 1;
     if (!aborted) {
       setPanoramasVisible(!HIDE_PANORAMS);
       setAlignMode(false);
+      setLookMode(false);
       const startIdx = resolveStartViewIndex() ?? 0;
       indexRef.current = startIdx;
       setCurrent(startIdx);
       const y0 = viewYawDegrees(CONFIG.views[startIdx]);
       yawDegreesRef.current = y0;
       setYawDegrees(y0);
+      const look0 =
+        viewLookYawDegrees(CONFIG.views[startIdx]) ?? 0;
+      lookYawDegreesRef.current = look0;
+      setLookYawDegrees(look0);
     }
 
     const navigate = (viewId) => runGoToRef.current?.(viewId, "walk");
@@ -391,9 +439,11 @@ export function useBabylonTour() {
       removeTouchRef.current = attachTouchControls(canvas, camera, lastTouchRef, {
         isBlocked: lookBlocked,
       });
-      removeDesktopLookRef.current = attachDesktopLookControls(canvas, camera, scene, {
+      const desktopLook = attachDesktopLookControls(canvas, camera, scene, {
         isBlocked: lookBlocked,
       });
+      desktopLookApiRef.current = desktopLook;
+      removeDesktopLookRef.current = desktopLook.dispose;
       removeZoomRef.current = attachZoomControls(canvas, camera, lastTouchRef);
 
       try {
@@ -633,6 +683,7 @@ export function useBabylonTour() {
       removeZoomRef.current = null;
       removeDesktopLookRef.current?.();
       removeDesktopLookRef.current = null;
+      desktopLookApiRef.current = null;
       removeResizeRef.current?.();
       removeResizeRef.current = null;
       pipelineRef.current?.dispose();
@@ -686,6 +737,21 @@ export function useBabylonTour() {
     applyYawToMeshes(next);
   };
 
+  const nudgeLookYaw = (delta) => {
+    if (loading || loadError || isAnimatingRef.current) return;
+    const next = Math.round((lookYawDegreesRef.current + delta) * 10) / 10;
+    lookYawDegreesRef.current = next;
+    setLookYawDegrees(next);
+    setCameraLookYawDegrees(cameraRef.current, next);
+  };
+
+  const setLookYawDegreesValue = (value) => {
+    if (loading || loadError || isAnimatingRef.current) return;
+    const next = setCameraLookYawDegrees(cameraRef.current, value);
+    lookYawDegreesRef.current = next;
+    setLookYawDegrees(next);
+  };
+
   const toggleAlignMode = async () => {
     if (!USE_MODEL || loading || loadError || isAnimatingRef.current) return;
 
@@ -693,6 +759,10 @@ export function useBabylonTour() {
       if (hidePanoramsRef.current) {
         await togglePanoramas();
         if (hidePanoramsRef.current) return;
+      }
+      if (lookModeRef.current) {
+        lookModeRef.current = false;
+        setLookMode(false);
       }
       alignModeRef.current = true;
       setAlignMode(true);
@@ -703,6 +773,25 @@ export function useBabylonTour() {
     alignModeRef.current = false;
     setAlignMode(false);
     applyOpacityToMeshes(1);
+  };
+
+  const toggleLookMode = () => {
+    if (loading || loadError || isAnimatingRef.current) return;
+
+    if (!lookModeRef.current) {
+      if (alignModeRef.current) {
+        alignModeRef.current = false;
+        setAlignMode(false);
+        applyOpacityToMeshes(1);
+      }
+      lookModeRef.current = true;
+      setLookMode(true);
+      syncLookYawFromCameraOrView(CONFIG.views[indexRef.current]);
+      return;
+    }
+
+    lookModeRef.current = false;
+    setLookMode(false);
   };
 
   const toggleHotspotEditMode = () => {
@@ -832,16 +921,21 @@ export function useBabylonTour() {
     loadError,
     panoramasVisible,
     alignMode,
+    lookMode,
     hotspotEditMode,
     hotspotEditSelection,
     yawDegrees,
+    lookYawDegrees,
     navigateTo,
     retry,
     setOverlaysVisible,
     togglePanoramas,
     toggleAlignMode,
+    toggleLookMode,
     toggleHotspotEditMode,
     nudgeYaw,
     setYawDegreesValue,
+    nudgeLookYaw,
+    setLookYawDegreesValue,
   };
 }

@@ -1,9 +1,9 @@
 import { UniversalCamera, Vector3 } from '@babylonjs/core';
 import { worldPos } from './config';
+import { applyCameraLook } from './cameraLook';
 
 export function initCamera(scene, canvas, view) {
   const pos = worldPos(view.position);
-  const look = worldPos(view.look);
 
   const camera = new UniversalCamera(
     'cam',
@@ -21,7 +21,7 @@ export function initCamera(scene, canvas, view) {
   camera.speed = 50;
   camera.fov = 1.4;
 
-  camera.setTarget(new Vector3(look.x, look.y, look.z));
+  applyCameraLook(camera, view);
 
   return camera;
 }

@@ -3,6 +3,7 @@ import styles from "./TourToolbar.module.scss";
 import ScreenshotButton from "./ScreenshotButton";
 import PanoramaToggle from "./PanoramaToggle";
 import AlignToggle from "./AlignToggle";
+import LookToggle from "./LookToggle";
 import HotspotEditToggle from "./HotspotEditToggle";
 import { DEV_MODE, USE_MODEL } from "../babylon/config";
 
@@ -14,26 +15,37 @@ const TourToolbar = ({
   onTogglePanoramas,
   alignMode,
   onToggleAlign,
+  lookMode,
+  onToggleLook,
   hotspotEditMode,
   onToggleHotspotEdit,
   disabled,
 }) => (
   <div className={styles.root}>
-    {DEV_MODE && USE_MODEL && (
+    {DEV_MODE && (
       <>
-        <HotspotEditToggle
-          active={hotspotEditMode}
-          onToggle={onToggleHotspotEdit}
-          disabled={disabled}
-        />
-        <AlignToggle
-          active={alignMode}
-          onToggle={onToggleAlign}
-          disabled={disabled}
-        />
-        <PanoramaToggle
-          panoramasVisible={panoramasVisible}
-          onToggle={onTogglePanoramas}
+        {USE_MODEL && (
+          <>
+            <HotspotEditToggle
+              active={hotspotEditMode}
+              onToggle={onToggleHotspotEdit}
+              disabled={disabled}
+            />
+            <AlignToggle
+              active={alignMode}
+              onToggle={onToggleAlign}
+              disabled={disabled}
+            />
+            <PanoramaToggle
+              panoramasVisible={panoramasVisible}
+              onToggle={onTogglePanoramas}
+              disabled={disabled}
+            />
+          </>
+        )}
+        <LookToggle
+          active={lookMode}
+          onToggle={onToggleLook}
           disabled={disabled}
         />
       </>

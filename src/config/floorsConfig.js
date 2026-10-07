@@ -27,11 +27,12 @@ export const FLOORS = [
       [69.909, 88.909],
       [11.909, 154.909],
       [9.909, 99.909],
+      [141.45, 127.908],
     ],
     rooms: {
       "stair-foyer": {
         label: "Stair Foyer",
-        viewId: "stair-foyer-1",
+        viewId: "stair-foyer-3",
         labelPos: [137.909, 105.507],
       },
       "stair-case": { label: "Stair Case", viewId: "stair-case" },
@@ -43,7 +44,7 @@ export const FLOORS = [
       "bathroom-1": {
         label: "Bathroom 1",
         shortLabel: "Bath 1",
-        viewId: "bathroom-1-1",
+        viewId: "bathroom-1-2",
         labelPos: [63.909, 81.07],
       },
       "bedroom-2": {
@@ -58,7 +59,7 @@ export const FLOORS = [
         labelPos: [243.909, 35.657],
       },
       "game-room": {
-        label: "Game Room",
+        label: "Lower Family Room",
         viewId: "game-room-2",
         labelPos: [49.909, 153.484],
       },
@@ -77,7 +78,12 @@ export const FLOORS = [
         viewId: "gym-1",
         labelPos: [206.242, 120.311],
       },
-      wellness: { label: "Wellness Area", shortLabel: "Wellness", viewId: "wellness-1" },
+      wellness: {
+        label: "Wellness Center",
+        shortLabel: "Wellness Center",
+        viewId: "wellness-1",
+        labelPos: [141.45, 127.908],
+      },
       "massage-room": {
         label: "Massage Room",
         viewId: "massage-1",
@@ -118,6 +124,7 @@ export const FLOORS = [
       "bathroom-1",
       "game-room",
       "bedroom-1",
+      "wellness",
     ],
   },
   {
@@ -133,6 +140,8 @@ export const FLOORS = [
       [9.909, 83.411],
       [43.955, 112.933],
       [53.955, 59.933],
+      [180, 5],
+      [250, 115],
     ],
     rooms: {
       entry: {
@@ -171,7 +180,7 @@ export const FLOORS = [
       "bathroom-3": {
         label: "Bathroom 3",
         shortLabel: "Bath 3",
-        viewId: "bathroom-3-1",
+        viewId: "bathroom-3-2",
         labelPos: [59.288, 43.543],
       },
       pool: {
@@ -182,8 +191,18 @@ export const FLOORS = [
       "main-powder": {
         label: "Main Powder Room",
         shortLabel: "Main Powder",
-        viewId: "main-powder",
+        viewId: "entry-hall-2",
         labelPos: [37.288, 121],
+      },
+      "outside-dining-bbq": {
+        label: "Outside dining & BBQ",
+        viewId: null,
+        labelPos: [180, 5],
+      },
+      "lawn-fireside": {
+        label: "Lawn & Fireside lounge",
+        viewId: null,
+        labelPos: [250, 115],
       },
     },
     listOrder: [
@@ -207,6 +226,8 @@ export const FLOORS = [
       "bedroom-3",
       "main-powder",
       "bathroom-3",
+      "outside-dining-bbq",
+      "lawn-fireside",
     ],
   },
   {
@@ -228,7 +249,7 @@ export const FLOORS = [
       "primary-bath": {
         label: "Primary Bathroom",
         shortLabel: "Primary Bath",
-        viewId: "primary-bathroom-1",
+        viewId: "primary-bathroom-2",
         labelPos: [161.909, 157],
       },
       "primary-bedroom": {
@@ -237,13 +258,13 @@ export const FLOORS = [
         labelPos: [246.909, 113.279],
       },
       closet: {
-        label: "Closet",
+        label: "Closet #1",
         viewId: "closet",
         labelPos: [201.576, 59.984],
       },
       office: {
         label: "Office",
-        viewId: "office-1",
+        viewId: "office-2",
         labelPos: [169.576, 7.558],
       },
       "office-bath": {

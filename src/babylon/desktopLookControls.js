@@ -95,7 +95,13 @@ export function attachDesktopLookControls(canvas, camera, scene, opts = {}) {
   canvas.addEventListener("pointercancel", onPointerUp);
   window.addEventListener("pointerup", onPointerUp);
 
-  return () => {
+  const resetVelocity = () => {
+    dragging = false;
+    velYaw = 0;
+    velPitch = 0;
+  };
+
+  const dispose = () => {
     scene.onBeforeRenderObservable.remove(observer);
     canvas.removeEventListener("pointerdown", onPointerDown);
     canvas.removeEventListener("pointermove", onPointerMove);
@@ -103,4 +109,6 @@ export function attachDesktopLookControls(canvas, camera, scene, opts = {}) {
     canvas.removeEventListener("pointercancel", onPointerUp);
     window.removeEventListener("pointerup", onPointerUp);
   };
+
+  return { dispose, resetVelocity };
 }

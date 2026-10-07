@@ -92,14 +92,14 @@ $font: "ABC Areal", sans-serif;
 
 .close {
   position: absolute;
-  left: 13px;
-  top: 10px;
-  z-index: 6;
+  left: 6px;
+  top: 3px;
+  z-index: 8;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: none;
   background: transparent;
@@ -109,6 +109,7 @@ $font: "ABC Areal", sans-serif;
     display: block;
     width: 30px;
     height: 30px;
+    pointer-events: none;
   }
 }
 
@@ -122,6 +123,7 @@ $font: "ABC Areal", sans-serif;
   align-items: center;
   justify-content: center;
   gap: 28px;
+  pointer-events: none;
 }
 
 .tab {
@@ -138,6 +140,7 @@ $font: "ABC Areal", sans-serif;
   text-transform: capitalize;
   white-space: nowrap;
   cursor: pointer;
+  pointer-events: auto;
   transition: opacity 0.2s;
 
   &:hover {

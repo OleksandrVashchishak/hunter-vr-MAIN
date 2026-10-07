@@ -6,6 +6,7 @@ import RoomSelector from "./components/RoomSelector";
 import Minimap from "./components/Minimap";
 import TourToolbar from "./components/TourToolbar";
 import AlignControls from "./components/AlignControls";
+import LookControls from "./components/LookControls";
 import HotspotEditControls from "./components/HotspotEditControls";
 import Tutor from "./components/Tutor";
 import FloorLoader from "./components/FloorLoader";
@@ -25,17 +26,22 @@ const BabylonViewer = () => {
     loadError,
     panoramasVisible,
     alignMode,
+    lookMode,
     hotspotEditMode,
     hotspotEditSelection,
     yawDegrees,
+    lookYawDegrees,
     navigateTo,
     retry,
     setOverlaysVisible,
     togglePanoramas,
     toggleAlignMode,
+    toggleLookMode,
     toggleHotspotEditMode,
     nudgeYaw,
     setYawDegreesValue,
+    nudgeLookYaw,
+    setLookYawDegreesValue,
   } = useBabylonTour();
 
   // Spinner listens for progress / ready via postMessage
@@ -68,6 +74,8 @@ const BabylonViewer = () => {
         onTogglePanoramas={togglePanoramas}
         alignMode={alignMode}
         onToggleAlign={toggleAlignMode}
+        lookMode={lookMode}
+        onToggleLook={toggleLookMode}
         hotspotEditMode={hotspotEditMode}
         onToggleHotspotEdit={toggleHotspotEditMode}
         disabled={uiDisabled}
@@ -78,6 +86,14 @@ const BabylonViewer = () => {
         viewId={viewId}
         onNudge={nudgeYaw}
         onYawChange={setYawDegreesValue}
+        disabled={uiDisabled}
+      />
+      <LookControls
+        active={lookMode}
+        lookYawDegrees={lookYawDegrees}
+        viewId={viewId}
+        onNudge={nudgeLookYaw}
+        onLookYawChange={setLookYawDegreesValue}
         disabled={uiDisabled}
       />
       <HotspotEditControls

@@ -1,5 +1,6 @@
 import { Vector3 } from "@babylonjs/core";
 import { CONFIG, USE_MODEL, cubemapKey, isExteriorView, worldPos } from "./config";
+import { applyEntryLookYaw } from "./cameraLook";
 import { easeInOutCubic } from "./easing";
 import {
   setMaterialYaw,
@@ -77,6 +78,7 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
     setCurrent,
     hidePanoramsRef,
     yawDegreesRef,
+    resetLookVelocity,
   } = refs;
 
   let transition =
@@ -170,6 +172,7 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
           setCurrent,
           isAnimatingRef,
           cubemapCache,
+          resetLookVelocity,
           onDone: resolve,
         });
       });
@@ -232,6 +235,7 @@ function runBlurTransition({
   setCurrent,
   isAnimatingRef,
   cubemapCache,
+  resetLookVelocity,
   onDone,
 }) {
   let animProgress = 0;
@@ -244,6 +248,9 @@ function runBlurTransition({
     if (!swapped && animProgress >= half) {
       swapped = true;
       camera.position.copyFrom(nextPos);
+      // Kill mouse-look inertia so it doesn't overwrite lookYaw after teleport.
+      resetLookVelocity?.();
+      applyEntryLookYaw(camera, next);
       settleProjectionItems(
         projectMeshesRef.current,
         nextCubemap,

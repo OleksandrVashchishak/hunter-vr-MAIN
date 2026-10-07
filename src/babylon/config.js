@@ -109,6 +109,9 @@ export function viewHotspotPos(view) {
  *
  * Optional per-view: `yaw` (degrees) — cubemap rotation around world Y
  * so a wrongly oriented bake aligns to the model. Tune via Align mode in toolbar.
+ * Optional: `lookYaw` (degrees) — camera facing when entering via Minimap /
+ * RoomSelector (blur teleport). Tune via Look mode in toolbar. If omitted,
+ * blur keeps the previous camera facing (spawn still uses `look`).
  * Optional: `hotspot: { x, y, z }` — floor marker offset from camera `position`
  * (same Max→Bab space). Default = camera. Tune via Hotspot edit in toolbar.
  * Optional: `bigHotspot: true` — floating pulsating sphere at `hotspot`/`position`
@@ -286,7 +289,7 @@ export const CONFIG = {
       id: "living",
       position: { x: 317.719, y: 555.764, z: 1380.343 },
       look: { x: -213.906, y: 555.764, z: 1368.082 },
-      views: ["living-2", "living-3", "dining", "outdoor-1", "outdoor-2", "outdoor-3"],
+      views: ["living-2", "living-3", "dining"],
       room: "Living Room",
       yaw: 126,
       hotspot: { x: 328.945, y: 555.764, z: 1477.062 },
@@ -390,6 +393,7 @@ export const CONFIG = {
       views: [ "outdoor-2", 'living-3'],
       room: "Outdoor",
       yaw: 90,
+      lookYaw: 165.8,
     },
     {
       id: "stair-case",
@@ -626,7 +630,7 @@ export const CONFIG = {
       position: { x: -1743.641, y: 188.505, z: 914.537 },
       look: { x: -1321.269, y: 188.505, z: 1156.996 },
       views: ["game-room-2", "game-room-3"],
-      room: "Game Room",
+      room: "Lower Family Room",
       hotspot: { x: -1732.915, y: 188.505, z: 1060.049 },
     },
     {
@@ -634,7 +638,7 @@ export const CONFIG = {
       position: { x: -1321.269, y: 188.505, z: 1156.996 },
       look: { x: -1743.641, y: 188.505, z: 914.537 },
       views: ["game-room-1", "game-room-3", 'stair-foyer-1',  'stair-foyer-3'],
-      room: "Game Room",
+      room: "Lower Family Room",
       yaw: -90,
     },
     {
@@ -642,7 +646,7 @@ export const CONFIG = {
       position: { x: -1957.087, y: 188.505, z: 542.934 },
       look: { x: -1743.641, y: 188.505, z: 914.537 },
       views: ["game-room-1", "game-room-2"],
-      room: "Game Room",
+      room: "Lower Family Room",
       yaw: 180,
       hotspot: { x: -1873.817, y: 188.505, z: 557.461 },
     },
