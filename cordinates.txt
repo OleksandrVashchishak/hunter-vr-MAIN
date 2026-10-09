@@ -40,6 +40,7 @@ Outdoor
 Camera001 (266,265cm x 2344,781cm x 555,647cm)
 Camera002 (869,57cm x 1921,735cm x 555,647cm)
 Camera003 (1026,008cm x 1241,794cm x 555,647cm)
+Camera004 (X -723,685cm  Y 2248,366cm  Z 663,581cm)
 
 Stair_Foyer
 

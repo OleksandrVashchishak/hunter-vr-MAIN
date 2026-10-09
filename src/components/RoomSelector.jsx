@@ -79,9 +79,8 @@ const RoomSelector = ({ currentIndex, onSelectRoom }) => {
     setSelectedFloorId(floor.id);
 
     if (isMobile) {
+      // Mobile: only switch the rooms list; navigate when a room is tapped.
       setMenuLevel("rooms");
-      const entryViewId = getDefaultRoomViewId(floor);
-      if (entryViewId) onSelectRoom(entryViewId);
       return;
     }
 

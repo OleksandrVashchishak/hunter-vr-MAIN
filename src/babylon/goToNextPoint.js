@@ -103,8 +103,8 @@ export const goToNextPoint = async (viewId, refs, cubemapCache, options = {}) =>
     if (next.locked) {
       return;
     }
-    // Outdoor sits outside the cage — never walk the GLB (dark exterior faces).
-    if (isExteriorView(curr) || isExteriorView(next)) {
+    // Per-view flag: blur-teleport when entering or leaving this pano.
+    if (next.moveWithBlur || curr.moveWithBlur) {
       transition = "blur";
     }
     const from = camera.position.clone();

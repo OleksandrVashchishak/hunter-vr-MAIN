@@ -60,7 +60,8 @@ export function createProjectionSkybox(
  */
 export function applyViewCageVisibility(projectMeshes, view) {
   if (!projectMeshes?.length || !view) return;
-  const exterior = isExteriorView(view);
+  // TEMP test: keep GLB cage on outdoor (was hide — dark exterior faces).
+  const exterior = false; // isExteriorView(view);
   const p = worldPos(view.position);
   const projectorPos = new Vector3(p.x, p.y, p.z);
 

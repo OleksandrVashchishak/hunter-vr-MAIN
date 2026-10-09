@@ -18,16 +18,17 @@ export function getTourGpuProfile() {
   return {
     mobile,
     /** Folder under BASE_URL; mobile falls back to panorams if a face 404s. */
-    cubemapPath: mobile ? "mobile" : "panorams",
+    // TEMP test: both use desktop panorams. Restore: mobile ? "mobile" : "panorams"
+    cubemapPath: "panorams",
     /**
      * Soft LRU cap. Desktop pins a whole floor (~20–30).
      * Mobile warms only current + neighbors, so 16 is a real ceiling.
      */
     cubemapCacheMax: mobile ? 16 : 32,
-    anisotropicFilteringLevel: mobile ? 8 : 16,
+    anisotropicFilteringLevel: 16,
     /** Mip chains ~+33% VRAM. */
     generateMipMaps: true,
-    /** Babylon: higher = fewer pixels. Desktop stays sharp; phones ease GPU. */
-    hardwareScalingLevel: mobile ? 1 : 0.75,
+    /** Babylon: higher = fewer pixels. Lower = sharper (more GPU). */
+    hardwareScalingLevel: 0.5,
   };
 }
