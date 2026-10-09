@@ -154,11 +154,19 @@ export const CONFIG = {
       id: "closet",
       position: { x: 99.284, y: 905.829, z: 1489.656 },
       look: { x: 700.073, y: 905.829, z: 1488.588 },
-      views: [ "primary-bedroom-1", 'primary-hall-1'],
+      views: ["primary-bedroom-1", "primary-hall-1", "closet-2"],
       room: "Closet",
       yaw: 90,
       lookYaw: -44.2,
       hotspot: { x: 89.912, y: 905.829, z: 1286.042 },
+    },
+    {
+      id: "closet-2",
+      position: { x: 89.463, y: 905.829, z: 1184.943 },
+      look: { x: 99.284, y: 905.829, z: 1489.656 },
+      views: ["closet"],
+      room: "Closet",
+      yaw: 90,
     },
     {
       id: "primary-bathroom-1",
@@ -375,7 +383,7 @@ export const CONFIG = {
       views: ["entry-hall-1", "main-powder", "bedroom-3-3"],
       room: "Entry Hall",
       yaw: 90,
-      lookYaw: 24.3,
+      lookYaw: 23.2,
     },
     {
       id: "entry-hall-3",
@@ -458,6 +466,7 @@ export const CONFIG = {
       views: [ "bathroom-3-2", "bedroom-3-1", "bedroom-3-3"],
       room: "Bedroom 3",
       yaw: -85,
+      lookYaw: 58,
     },
     {
       id: "bedroom-3-3",

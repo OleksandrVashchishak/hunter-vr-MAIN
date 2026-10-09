@@ -192,7 +192,7 @@ export const FLOORS = [
       "main-powder": {
         label: "Main Powder Room",
         shortLabel: "Main Powder",
-        viewId: "main-powder",
+        viewId: "entry-hall-2",
         labelPos: [37.288, 121],
       },
       "outside-dining-bbq": {
