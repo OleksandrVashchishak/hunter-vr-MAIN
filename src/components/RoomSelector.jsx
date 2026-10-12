@@ -111,7 +111,11 @@ const RoomSelector = ({ currentIndex, onSelectRoom }) => {
         <BackIcon />
       </button>
 
-      <button type="button" className={`${styles.pill} ${styles.glass} ${styles.home}`}>
+      <button
+        type="button"
+        className={`${styles.pill} ${styles.glass} ${styles.home}`}
+        onClick={() => postToParent({ type: "VR_GO_HOME" })}
+      >
         Home
       </button>
 

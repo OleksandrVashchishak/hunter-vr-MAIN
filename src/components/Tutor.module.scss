@@ -11,11 +11,20 @@ $mobile: 900px;
   -webkit-backdrop-filter: blur(17px);
 }
 
-.card {
+.center {
   position: absolute;
   top: 50%;
   left: 50%;
   z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  transform: translate(-50%, -50%);
+}
+
+.card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -25,7 +34,6 @@ $mobile: 900px;
   box-sizing: border-box;
   border-radius: 30px;
   background: $bg-secondary;
-  transform: translate(-50%, -50%);
 
   @media (max-width: $mobile) {
     width: 241px;
@@ -177,19 +185,11 @@ $mobile: 900px;
 }
 
 .loader {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 1200;
-  transform: translate(-50%, calc(-50% + 160px));
   color: #fff;
   text-align: center;
   font-family: "ABC Areal", sans-serif;
   font-size: 18px;
   font-weight: 400;
   line-height: 85%;
-
-  @media (max-width: $mobile) {
-    transform: translate(-50%, calc(-50% + 280px));
-  }
+  flex-shrink: 0;
 }

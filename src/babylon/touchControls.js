@@ -6,7 +6,7 @@ const PITCH_LIMIT = Math.PI / 2;
  */
 export function attachTouchControls(canvas, camera, lastTouchRef, opts = {}) {
   const { isBlocked } = opts;
-  const sens = 500;
+  const sens = 200;
 
   const onPointerDown = (evt) => {
     if (evt.pointerType !== "touch") return;

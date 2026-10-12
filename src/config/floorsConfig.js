@@ -31,9 +31,9 @@ export const FLOORS = [
     ],
     rooms: {
       "stair-foyer": {
-        label: "Stair Foyer",
+        label: "Foyer",
         viewId: "stair-foyer-3",
-        labelPos: [121.909, 113.346],
+        labelPos: [76.576, 131.161],
       },
       "stair-case": { label: "Stair Case", viewId: "stair-case" },
       "bedroom-1": {
@@ -66,12 +66,12 @@ export const FLOORS = [
       mudroom: {
         label: "Mudroom",
         viewId: "mudroom-2",
-        labelPos: [171.576, 183],
+        labelPos: [160.909, 182.287],
       },
       sauna: {
         label: "Sauna",
         viewId: "sauna-3",
-        labelPos: [178.909, 39.669],
+        labelPos: [123.576, 75.299],
       },
       gym: {
         label: "Gym",
@@ -82,12 +82,12 @@ export const FLOORS = [
         label: "Wellness Center",
         shortLabel: "Wellness Center",
         viewId: "wellness-1",
-        labelPos: [191.45, 145.011],
+        labelPos: [178.117, 146.436],
       },
       "massage-room": {
         label: "Massage Room",
-        viewId: "massage-1",
-        labelPos: [223.576, 72.956],
+        viewId: "massage-2",
+        labelPos: [221.576, 77.944],
       },
       "lower-powder": {
         label: "Lower Powder Room",
@@ -293,7 +293,7 @@ export const FLOORS = [
       "bathroom-4": {
         label: "Bathroom 4",
         shortLabel: "Bath 4",
-        viewId: "bathroom-4-2",
+        viewId: "bedroom-4-3",
         labelPos: [47.575, 51.295],
       },
       "primary-hall": {
