@@ -33,7 +33,7 @@ export const FLOORS = [
       "stair-foyer": {
         label: "Foyer",
         viewId: "stair-foyer-3",
-        labelPos: [76.576, 131.161],
+        labelPos: [92.576, 125.46],
       },
       "stair-case": { label: "Stair Case", viewId: "stair-case" },
       "bedroom-1": {
@@ -71,7 +71,7 @@ export const FLOORS = [
       sauna: {
         label: "Sauna",
         viewId: "sauna-3",
-        labelPos: [123.576, 75.299],
+        labelPos: [124.909, 73.874],
       },
       gym: {
         label: "Gym",
@@ -87,7 +87,7 @@ export const FLOORS = [
       "massage-room": {
         label: "Massage Room",
         viewId: "massage-2",
-        labelPos: [221.576, 77.944],
+        labelPos: [155.576, 107.874],
       },
       "lower-powder": {
         label: "Lower Powder Room",
