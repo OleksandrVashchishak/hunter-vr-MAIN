@@ -209,7 +209,7 @@ export const CONFIG = {
       look: { x: -205.162, y: 905.829, z: 1184.943 },
       views: ["primary-hall-2", "primary-hall-4", "bedroom-5-hall", "stair-case-2"],
       room: "Primary Hall",
-      yaw: 90,
+      yaw: 225,
       lookYaw: -178.6,
     },
     {
@@ -227,6 +227,7 @@ export const CONFIG = {
       views: ["bedroom-4-2", "bedroom-4-3"],
       room: "Bedroom 4",
       yaw: -91,
+      lookYaw: 87.8,
     },
     {
       id: "bedroom-4-2",
@@ -322,6 +323,7 @@ export const CONFIG = {
       views: ["living", 'outdoor-3'],
       room: "Living Room",
       yaw: 90,
+      lookYaw: -90,
       hotspot: { x: 774.613, y: 555.764, z: 1426.772 },
     },
     {
@@ -331,6 +333,7 @@ export const CONFIG = {
       views: ["living", "dining", "kitchen"],
       room: "Living Room",
       yaw: 146,
+      lookYaw: -128.3,
       hotspot: { x: 20.877, y: 555.647, z: 1167.05 },
     },
     {
@@ -350,6 +353,7 @@ export const CONFIG = {
       views: ["dining", "living",  "entry-hall-1", 'kitchen-2', "stair-case-2"],
       room: "Dining Room",
       yaw: 90,
+      lookYaw: -90,
     },
     {
       id: "kitchen",
