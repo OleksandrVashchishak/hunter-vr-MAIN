@@ -31,6 +31,36 @@ export const FLOORS = [
       [9.909, 99.909],
       [141.45, 127.908],
     ],
+    pinPos: {
+      "stair-foyer-3": [129.423, 136.36], // Foyer
+      "mudroom-2": [138.499, 188.203], // Mudroom
+      "gym-1": [206.932, 93.895], // Gym
+      "wellness-1": [152.685, 127.467], // Wellness Center
+      "sauna-3": [155.845, 62.145], // Sauna
+      "massage-2": [162.488, 93.324], // Massage Room
+      "bedroom-2-1": [200.14, 15.616], // Bedroom 2
+      "bathroom-2-1": [221.191, 57.059], // Bath 2
+      "game-room-2": [52.416, 127.418], // Lower Family Room
+      "bedroom-1-1": [25.226, 93.584], // Bedroom 1
+      "bathroom-1-2": [59.753, 100.987], // Bath 1
+      "lower-powder": [102.851, 132.424], // Lower Powder
+      "stair-case": [109.474, 92.855], // Stair Case
+      "stair-foyer-1": [91.804, 115.95], // Foyer
+      "stair-foyer-2": [91.676, 92.237], // Foyer
+      "stair-foyer-4": [101.209, 51.274], // Foyer
+      "mudroom-1": [133.498, 161.073], // Mudroom
+      "gym-2": [181.569, 114.533], // Gym
+      "sauna-1": [175.653, 57.762], // Sauna
+      "sauna-2": [157.658, 48.179], // Sauna
+      "massage-1": [173.037, 77.755], // Massage Room
+      "bedroom-2-2": [172.352, 32.284], // Bedroom 2
+      "bathroom-2-2": [222.693, 35.735], // Bathroom 2
+      "game-room-1": [11.045, 139.95], // Lower Family Room
+      "game-room-3": [3, 182], // Lower Family Room
+      "bedroom-1-2": [77.868, 105.502], // Bedroom 1
+      "bathroom-1-1": [74.998, 89.111], // Bathroom 1
+      "lower-powder-2": [104.96, 151.08], // Lower Powder Room
+    },
     rooms: {
       "stair-foyer": {
         label: "Foyer",
@@ -146,6 +176,29 @@ export const FLOORS = [
       [250, 115],
       [100, 5],
     ],
+    pinPos: {
+      living: [195.543, 53.317], // Living Room
+      dining: [146.354, 70.929], // Dining
+      kitchen: [158.931, 119.856], // Kitchen
+      "entry-hall-1": [96.884, 88.509], // Entry
+      "entry-hall-2": [58.104, 92.779], // Main Powder
+      "outdoor-3": [257.176, 70.553], // Pool
+      "bedroom-3-2": [23.392, 76.098], // Bedroom 3
+      "bathroom-3-2": [41.893, 65.538], // Bath 3
+      "living-3": [240.206, 55.112], // Living Room
+      "living-2": [165.645, 82.272], // Living Room
+      "dining-2": [120.154, 81.136], // Dining Room
+      "kitchen-2": [130.145, 97.277], // Kitchen
+      "entry-hall-3": [97.93, 108.803], // Entry Hall
+      "outdoor-1": [186.829, 3], // Outdoor
+      "outdoor-2": [248.293, 11.207], // Outdoor
+      "outdoor-4": [88.209, 3], // Outdoor
+      "stair-case-2": [97.819, 59.75], // Upper Stair Case
+      "bedroom-3-1": [12.111, 89.784], // Bedroom 3
+      "bedroom-3-3": [41.599, 83.59], // Bedroom 3
+      "bathroom-3-1": [60.766, 64.402], // Bathroom 3
+      "main-powder": [43.438, 108.505], // Main Powder Room
+    },
     rooms: {
       entry: {
         label: "Entry Hall",
@@ -254,6 +307,28 @@ export const FLOORS = [
       [9.909, 100.661],
       [56.909, 77.661],
     ],
+    pinPos: {
+      "primary-bedroom-1": [212.37, 104.594], // Primary Bedroom
+      closet: [190.858, 73.611], // Closet #1
+      "primary-bathroom-2": [164.958, 125.316], // Primary Bath
+      "primary-hall-1": [181.678, 100.962], // Hall
+      "primary-hall-3": [100.06, 91.552], // Landing
+      "bedroom-4-2": [34.982, 114.277], // Bedroom 4
+      "bedroom-4-3": [34.713, 80.725], // Bath 4
+      "office-2": [145.277, 57.853], // Office
+      "office-bathroom-2": [151.285, 77.988], // Office Bath
+      "primary-bedroom-3": [236.439, 101.922], // Primary Bedroom
+      "primary-bedroom-2": [257, 68.835], // Primary Bedroom
+      "primary-bathroom-1": [161.656, 144.57], // Primary Bathroom
+      "primary-hall-2": [159.251, 102.249], // Primary Hall
+      "primary-hall-4": [61.218, 100.91], // Primary Hall
+      "bedroom-4-1": [20.584, 101.271], // Bedroom 4
+      "bathroom-4-2": [55.801, 77.987], // Bathroom 4
+      "bedroom-4-4": [50.626, 115.493], // Bedroom 4
+      "bedroom-5-hall": [143.989, 92.329], // Hall
+      "office-1": [176.705, 32.643], // Office
+      "office-bathroom-1": [166.257, 77.999], // Office Bathroom
+    },
     rooms: {
       "primary-bath": {
         label: "Primary Bathroom",
