@@ -188,6 +188,62 @@ $font: "ABC Areal", sans-serif;
   }
 }
 
+.markersPointEditing {
+  .hotspot {
+    pointer-events: auto;
+    opacity: 1;
+  }
+}
+
+.hotspotEditable {
+  cursor: grab;
+  outline: 1px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: 3px;
+  z-index: 6;
+
+  &:hover,
+  &:focus-visible {
+    z-index: 9;
+
+    .hotspotTip {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+  }
+}
+
+.hotspotDragging {
+  cursor: grabbing;
+  outline-color: #fff;
+  z-index: 10;
+
+  .hotspotTip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.hotspotTip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  z-index: 11;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-family: $font;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
 .labelEditBar {
   position: absolute;
   top: 44px;

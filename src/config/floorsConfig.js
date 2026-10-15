@@ -2,6 +2,8 @@
  * Shared floor / room catalogue.
  * - listOrder → Floor / Room selectors (RoomSelector)
  * - minimapOrder + hotspots → calibrate 3D→SVG projection (minimapProjection)
+ * - pinPos: { [viewId]: [x, y] } → independent minimap pin overrides
+ *   (drag via ?editMinimapHotspots=1)
  * - rooms.*.labelPos → minimap text position [x, y] in floor viewBox
  *   (fallback: legacy hotspots[i]; drag via ?editMinimapLabels=1)
  * Labels: `label` for list, `shortLabel` for minimap (falls back to label).
@@ -408,6 +410,19 @@ export function formatMinimapLabelPositions(floor, drafts = null) {
   return `// ${floor.id} — merge as rooms.*.labelPos\n{\n${entries.join("\n")}\n}`;
 }
 
+/** Snippet to paste `pinPos` into floorsConfig for one floor (all pins). */
+export function formatMinimapPinPositions(floor, drafts = null) {
+  if (!floor) return "";
+  const pins = getMinimapPins(floor, FLOORS, drafts);
+  const lines = pins.map((pin) => {
+    const x = Math.round(pin.x * 1000) / 1000;
+    const y = Math.round(pin.y * 1000) / 1000;
+    const name = pin.label || pin.room || pin.viewId;
+    return `  "${pin.viewId}": [${x}, ${y}], // ${name}`;
+  });
+  return `// ${floor.id} — paste as pinPos (independent per view)\npinPos: {\n${lines.join("\n")}\n},`;
+}
+
 /** Match room on a floor by entry viewId, or by shared room label (any panorama). */
 export function findRoomOnFloor(floor, viewId, roomLabel) {
   if (!floor) return null;
@@ -434,7 +449,7 @@ export function findFloorForViewId(viewId, roomLabel) {
   );
 }
 
-export function getActiveHotspot(floor, viewId, roomLabel) {
+export function getActiveHotspot(floor, viewId, roomLabel, pinDrafts = null) {
   if (!floor || (!viewId && !roomLabel)) return null;
 
   const view =
@@ -443,11 +458,15 @@ export function getActiveHotspot(floor, viewId, roomLabel) {
     null;
 
   if (view) {
+    const pins = getMinimapPins(floor, FLOORS, pinDrafts);
+    const index = pins.findIndex((pin) => pin.viewId === view.id);
+    if (index >= 0) {
+      const pin = pins[index];
+      return { index, x: pin.x, y: pin.y, viewId: view.id };
+    }
     const projected = projectViewOnFloor(floor, view, FLOORS);
     if (projected) {
-      const pins = getMinimapPins(floor, FLOORS);
-      const index = pins.findIndex((pin) => pin.viewId === view.id);
-      return { index, x: projected.x, y: projected.y, viewId: view.id };
+      return { index: -1, x: projected.x, y: projected.y, viewId: view.id };
     }
   }
 
@@ -463,8 +482,13 @@ export function getActiveHotspot(floor, viewId, roomLabel) {
     index = floor.minimapOrder.indexOf(pinId);
   }
   if (index < 0) return null;
-  const point = floor.hotspots[index];
+  const roomId = floor.minimapOrder[index];
+  const entryViewId = rooms[index]?.viewId || null;
+  const draftKey = entryViewId ? `${floor.id}:${entryViewId}` : null;
+  const fromDraft = draftKey && pinDrafts?.[draftKey];
+  const fromPinPos = entryViewId && floor.pinPos?.[entryViewId];
+  const point = fromDraft || fromPinPos || floor.hotspots[index];
   if (!point) return null;
   const [x, y] = point;
-  return { index, x, y, viewId: rooms[index]?.viewId || null };
+  return { index, x, y, viewId: entryViewId };
 }

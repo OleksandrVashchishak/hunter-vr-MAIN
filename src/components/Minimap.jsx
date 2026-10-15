@@ -5,6 +5,7 @@ import {
   FLOORS,
   findFloorForViewId,
   formatMinimapLabelPositions,
+  formatMinimapPinPositions,
   getActiveHotspot,
   getMinimapLabels,
 } from "../config/floorsConfig";
@@ -37,12 +38,12 @@ const FLOOR_ASSETS = {
 const MOBILE_MQ = "(max-width: 900px)";
 /** Match VR walk (~80 frames @ 60fps) so the pin rides with the hop. */
 const RADAR_TRAVEL_MS = 1300;
-/** How far past the floor viewBox labels can be dragged in edit mode. */
-const LABEL_DRAG_PAD = 50;
+/** How far past the floor viewBox labels/points can be dragged in edit mode. */
+const DRAG_PAD = 50;
 
-function readLabelEditFlag() {
+function readEditFlag(key) {
   if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).has("editMinimapLabels");
+  return new URLSearchParams(window.location.search).has(key);
 }
 
 const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
@@ -53,9 +54,19 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
   });
   const [floorId, setFloorId] = useState("floor-ii");
   const [trackedViewId, setTrackedViewId] = useState(null);
-  const [labelEdit, setLabelEdit] = useState(readLabelEditFlag);
+  const [labelEdit, setLabelEdit] = useState(() => {
+    // Prefer points if both query flags are set.
+    if (readEditFlag("editMinimapHotspots")) return false;
+    return readEditFlag("editMinimapLabels");
+  });
+  const [pointEdit, setPointEdit] = useState(() =>
+    readEditFlag("editMinimapHotspots"),
+  );
   const [labelDrafts, setLabelDrafts] = useState({});
-  const [dragRoomId, setDragRoomId] = useState(null);
+  const [pointDrafts, setPointDrafts] = useState({});
+  /** Label: roomId · Point: viewId */
+  const [dragId, setDragId] = useState(null);
+  const [dragKind, setDragKind] = useState(null); // "label" | "point"
   const [copied, setCopied] = useState(false);
   const radarRef = useRef(null);
   const pingRef = useRef(null);
@@ -128,11 +139,17 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
 
   const floor = FLOORS.find((item) => item.id === floorId) || FLOORS[1];
   const assets = FLOOR_ASSETS[floor.id];
-  const pins = getMinimapPins(floor, FLOORS);
-  const majorPins = pins.filter((pin) => pin.major);
+  const editing = labelEdit || pointEdit;
+  const pins = getMinimapPins(floor, FLOORS, pointDrafts);
   const minorPins = pins.filter((pin) => !pin.major);
+  const majorPins = pins.filter((pin) => pin.major);
   const labels = getMinimapLabels(floor, labelDrafts);
-  const active = getActiveHotspot(floor, displayViewId, displayRoomName);
+  const active = getActiveHotspot(
+    floor,
+    displayViewId,
+    displayRoomName,
+    pointDrafts,
+  );
 
   const clientToSvg = (clientX, clientY) => {
     const box = markersRef.current?.getBoundingClientRect();
@@ -143,24 +160,38 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
     };
   };
 
-  const onLabelPointerDown = (event, roomId) => {
-    if (!labelEdit) return;
+  const startDrag = (event, id, kind, x, y) => {
     event.preventDefault();
     event.stopPropagation();
     const point = clientToSvg(event.clientX, event.clientY);
-    const label = labels.find((item) => item.id === roomId);
-    if (!point || !label) return;
+    if (!point) return;
     dragRef.current = {
-      roomId,
-      offsetX: label.x - point.x,
-      offsetY: label.y - point.y,
+      id,
+      kind,
+      offsetX: x - point.x,
+      offsetY: y - point.y,
     };
-    setDragRoomId(roomId);
+    setDragKind(kind);
+    setDragId(id);
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
+  const onLabelPointerDown = (event, roomId) => {
+    if (!labelEdit) return;
+    const label = labels.find((item) => item.id === roomId);
+    if (!label) return;
+    startDrag(event, roomId, "label", label.x, label.y);
+  };
+
+  const onPointPointerDown = (event, viewId) => {
+    if (!pointEdit) return;
+    const pin = pins.find((item) => item.viewId === viewId);
+    if (!pin) return;
+    startDrag(event, viewId, "point", pin.x, pin.y);
+  };
+
   useEffect(() => {
-    if (!dragRoomId) return undefined;
+    if (!dragId || !dragKind) return undefined;
 
     const onMove = (event) => {
       const drag = dragRef.current;
@@ -168,20 +199,25 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
       const point = clientToSvg(event.clientX, event.clientY);
       if (!point) return;
       const x = Math.min(
-        floor.viewBox.w + LABEL_DRAG_PAD,
-        Math.max(-LABEL_DRAG_PAD, point.x + drag.offsetX),
+        floor.viewBox.w + DRAG_PAD,
+        Math.max(-DRAG_PAD, point.x + drag.offsetX),
       );
       const y = Math.min(
-        floor.viewBox.h + LABEL_DRAG_PAD,
-        Math.max(-LABEL_DRAG_PAD, point.y + drag.offsetY),
+        floor.viewBox.h + DRAG_PAD,
+        Math.max(-DRAG_PAD, point.y + drag.offsetY),
       );
-      const key = `${floor.id}:${drag.roomId}`;
-      setLabelDrafts((prev) => ({ ...prev, [key]: [x, y] }));
+      const key = `${floor.id}:${drag.id}`;
+      if (drag.kind === "label") {
+        setLabelDrafts((prev) => ({ ...prev, [key]: [x, y] }));
+      } else {
+        setPointDrafts((prev) => ({ ...prev, [key]: [x, y] }));
+      }
     };
 
     const onUp = () => {
       dragRef.current = null;
-      setDragRoomId(null);
+      setDragId(null);
+      setDragKind(null);
     };
 
     window.addEventListener("pointermove", onMove);
@@ -192,7 +228,7 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [dragRoomId, floor.id, floor.viewBox.h, floor.viewBox.w]);
+  }, [dragId, dragKind, floor.id, floor.viewBox.h, floor.viewBox.w]);
 
   const copyLabels = async () => {
     const text = formatMinimapLabelPositions(floor, labelDrafts);
@@ -202,6 +238,32 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
     } catch {
       /* ignore */
     }
+  };
+
+  const copyPoints = async () => {
+    const text = formatMinimapPinPositions(floor, pointDrafts);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const toggleLabelEdit = () => {
+    setLabelEdit((prev) => {
+      const next = !prev;
+      if (next) setPointEdit(false);
+      return next;
+    });
+  };
+
+  const togglePointEdit = () => {
+    setPointEdit((prev) => {
+      const next = !prev;
+      if (next) setLabelEdit(false);
+      return next;
+    });
   };
 
   // Queue radar travel (RAF loop below paints it — CSS left/top transitions were getting killed).
@@ -325,9 +387,16 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
               <button
                 type="button"
                 className={`${styles.labelEditBtn}${labelEdit ? ` ${styles.labelEditBtnActive}` : ""}`}
-                onClick={() => setLabelEdit((prev) => !prev)}
+                onClick={toggleLabelEdit}
               >
                 {labelEdit ? "Done labels" : "Edit labels"}
+              </button>
+              <button
+                type="button"
+                className={`${styles.labelEditBtn}${pointEdit ? ` ${styles.labelEditBtnActive}` : ""}`}
+                onClick={togglePointEdit}
+              >
+                {pointEdit ? "Done points" : "Edit points"}
               </button>
               {labelEdit && (
                 <button
@@ -338,12 +407,28 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
                   {copied ? "Copied" : "Copy labelPos"}
                 </button>
               )}
+              {pointEdit && (
+                <button
+                  type="button"
+                  className={styles.labelEditBtn}
+                  onClick={copyPoints}
+                >
+                  {copied ? "Copied" : "Copy pinPos"}
+                </button>
+              )}
             </div>
           )}
 
           {labelEdit && (
             <div className={styles.labelEditHint}>
               Drag labels · Copy → paste <code>labelPos</code> into{" "}
+              <code>floorsConfig</code>
+            </div>
+          )}
+
+          {pointEdit && (
+            <div className={styles.labelEditHint}>
+              Drag any pin independently · Copy → paste <code>pinPos</code> into{" "}
               <code>floorsConfig</code>
             </div>
           )}
@@ -358,8 +443,8 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
           <div
             ref={markersRef}
             className={`${styles.markers} ${assets.markersClass}${
-              labelEdit ? ` ${styles.markersEditing}` : ""
-            }`}
+              editing ? ` ${styles.markersEditing}` : ""
+            }${pointEdit ? ` ${styles.markersPointEditing}` : ""}`}
           >
             {active && (
               <div
@@ -386,13 +471,17 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
               </div>
             )}
 
-            {/* Pins from config XYZ projection */}
+            {/* Pins: projection + optional per-view pinPos / draft */}
             {minorPins.map((pin) => (
               <button
                 key={pin.viewId}
                 type="button"
                 className={`${styles.hotspot} ${styles.hotspotMinor}${
                   active?.viewId === pin.viewId ? ` ${styles.hotspotMinorActive}` : ""
+                }${pointEdit ? ` ${styles.hotspotEditable}` : ""}${
+                  pointEdit && dragId === pin.viewId
+                    ? ` ${styles.hotspotDragging}`
+                    : ""
                 }`}
                 style={{
                   left: `${(pin.x / floor.viewBox.w) * 100}%`,
@@ -400,8 +489,23 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
                 }}
                 aria-label={pin.room || pin.viewId}
                 disabled={labelEdit}
-                onClick={() => onSelectRoomRef.current?.(pin.viewId)}
-              />
+                onPointerDown={
+                  pointEdit
+                    ? (event) => onPointPointerDown(event, pin.viewId)
+                    : undefined
+                }
+                onClick={
+                  pointEdit
+                    ? undefined
+                    : () => onSelectRoomRef.current?.(pin.viewId)
+                }
+              >
+                {pointEdit && (
+                  <span className={styles.hotspotTip} aria-hidden>
+                    {pin.viewId}
+                  </span>
+                )}
+              </button>
             ))}
 
             {majorPins.map((pin) => (
@@ -410,6 +514,10 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
                 type="button"
                 className={`${styles.hotspot} ${styles.hotspotMajor}${
                   active?.viewId === pin.viewId ? ` ${styles.hotspotMajorActive}` : ""
+                }${pointEdit ? ` ${styles.hotspotEditable}` : ""}${
+                  pointEdit && dragId === pin.viewId
+                    ? ` ${styles.hotspotDragging}`
+                    : ""
                 }`}
                 style={{
                   left: `${(pin.x / floor.viewBox.w) * 100}%`,
@@ -417,8 +525,23 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
                 }}
                 aria-label={pin.label || pin.room || pin.viewId}
                 disabled={labelEdit}
-                onClick={() => onSelectRoomRef.current?.(pin.viewId)}
-              />
+                onPointerDown={
+                  pointEdit
+                    ? (event) => onPointPointerDown(event, pin.viewId)
+                    : undefined
+                }
+                onClick={
+                  pointEdit
+                    ? undefined
+                    : () => onSelectRoomRef.current?.(pin.viewId)
+                }
+              >
+                {pointEdit && (
+                  <span className={styles.hotspotTip} aria-hidden>
+                    {pin.viewId}
+                  </span>
+                )}
+              </button>
             ))}
 
             {/* Room labels — HTML, draggable in edit mode */}
@@ -427,7 +550,11 @@ const Minimap = ({ currentIndex, travelViewId, onSelectRoom, cameraRef }) => {
                 key={item.id}
                 className={`${styles.roomLabel}${
                   labelEdit ? ` ${styles.roomLabelEditable}` : ""
-                }${dragRoomId === item.id ? ` ${styles.roomLabelDragging}` : ""}`}
+                }${
+                  labelEdit && dragId === item.id
+                    ? ` ${styles.roomLabelDragging}`
+                    : ""
+                }`}
                 style={{
                   left: `${(item.x / floor.viewBox.w) * 100}%`,
                   top: `${(item.y / floor.viewBox.h) * 100}%`,

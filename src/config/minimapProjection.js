@@ -91,6 +91,14 @@ function getFloorTransform(floor) {
   return cached;
 }
 
+function resolvePinOverride(floor, viewId, pinDrafts = null) {
+  const draft = pinDrafts?.[`${floor.id}:${viewId}`];
+  if (Array.isArray(draft) && draft.length >= 2) return draft;
+  const fromConfig = floor.pinPos?.[viewId];
+  if (Array.isArray(fromConfig) && fromConfig.length >= 2) return fromConfig;
+  return null;
+}
+
 function clampToViewBox(floor, x, y) {
   const pad = 3;
   return {
@@ -159,9 +167,11 @@ export function projectViewOnFloor(floor, view, floors = []) {
 
 /**
  * Every panorama pin on a floor.
- * `major` = labeled entry view from minimapOrder (still projected from XYZ).
+ * `major` = labeled entry view from minimapOrder.
+ * Base = 3D→SVG projection; optional per-view override via `floor.pinPos` / drafts
+ * (`${floorId}:${viewId}` → [x,y]) so each pin moves independently.
  */
-export function getMinimapPins(floor, floors = []) {
+export function getMinimapPins(floor, floors = [], pinDrafts = null) {
   if (!floor) return [];
 
   const pins = [];
@@ -172,14 +182,20 @@ export function getMinimapPins(floor, floors = []) {
     if (!projected) continue;
     if (seen.has(view.id)) continue;
     seen.add(view.id);
+    const override = resolvePinOverride(floor, view.id, pinDrafts);
     pins.push({
       viewId: view.id,
       room: view.room,
-      x: projected.x,
-      y: projected.y,
+      x: override ? override[0] : projected.x,
+      y: override ? override[1] : projected.y,
       major: projected.major,
       roomId: projected.roomId,
       label: projected.label,
+      source: override
+        ? pinDrafts?.[`${floor.id}:${view.id}`]
+          ? "draft"
+          : "config"
+        : "projected",
     });
   }
 
