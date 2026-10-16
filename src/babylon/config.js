@@ -220,6 +220,7 @@ export const CONFIG = {
       views: ["primary-hall-3", "bedroom-4-4"],
       room: "Primary Hall",
       yaw: 90,
+      lookYaw: 81.3,
     },
     {
       id: "bedroom-4-1",
@@ -272,6 +273,7 @@ export const CONFIG = {
       views: ["office-2", "office-bathroom-2", "primary-hall-2", "primary-hall-3"],
       room: "Hall",
       yaw: -136,
+      lookYaw: 179.9,
     },
     {
       id: "office-1",
@@ -407,7 +409,7 @@ export const CONFIG = {
       views: ["outdoor-2", "outdoor-4"],
       room: "Outdoor",
       yaw: 10,
-      lookYaw: 100.9,
+      lookYaw: -21.7,
     },
     {
       id: "outdoor-2",
@@ -416,7 +418,7 @@ export const CONFIG = {
       views: [ "outdoor-1", "outdoor-3"],
       room: "Outdoor",
       yaw: 10,
-      lookYaw: 100.9,
+      lookYaw: 88.3,
     },
     {
       id: "outdoor-3",
@@ -527,6 +529,7 @@ export const CONFIG = {
       views: ["stair-foyer-1", "stair-foyer-3", "stair-foyer-4"],
       room: "Foyer",
       yaw: 225,
+      lookYaw: -178.8,
     },
     {
       id: "stair-foyer-3",
@@ -635,7 +638,7 @@ export const CONFIG = {
       views: ["massage-1", "wellness-2" ,'sauna-3'],
       room: "Massage Room",
       yaw: 90,
-      lookYaw: -89.3,
+      lookYaw: -129.5,
       hotspot: { x: -354.22, y: 152.002, z: 1464.788 },
     },
     {
